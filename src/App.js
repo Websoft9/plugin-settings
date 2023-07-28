@@ -4,7 +4,6 @@ import AccordionSummary from '@mui/material/AccordionSummary';
 import MuiAlert from '@mui/material/Alert';
 import Snackbar from '@mui/material/Snackbar';
 import Typography from '@mui/material/Typography';
-import axios from 'axios';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import classNames from 'classnames';
 import cockpit from 'cockpit';
@@ -20,8 +19,6 @@ const Alert = React.forwardRef(function Alert(props, ref) {
   return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
 });
 
-// FullModal.setAppElement("#main"); // 设置模态框绑定的元素，通常是父页面的根元素
-
 function App() {
   const [showUpdateLog, setShowUpdateLog] = useState(false); //用于更新弹窗
   const [currentVersion, setCurrentVersion] = useState(""); //用于存储当前版本
@@ -35,45 +32,35 @@ function App() {
   const [showComplete, setShowComplete] = useState(false); //用于显示更新完成提示弹窗
   const [autoUpdate, setAutoUpdate] = useState(false); //用于自动更新标识
 
-  let credentials;
-
-  //获取接口调用的credentials
-  async function getCredentials() {
-    if (!credentials) {
-      const response = await fetch('../myapps/config.json');
-      const data = await response.json();
-      if (data) {
-        const { APPMANAGE_USERNAME: userName, APPMANAGE_PASSWORD: userPassword } = data.APPMANAGE;
-        credentials = btoa(`${userName}:${userPassword}`);
-        axios.defaults.headers.common['Authorization'] = `Basic ${credentials}`; //设置axios的请求头
-      }
-    }
-  }
-
   const checkeUpdate = async (init) => {
     try {
-      const response = await axios.get("/AppManage/AppUpdateList"); //调用获取更新内容接口
-      if (response.data.Error) {
-        setShowAlert(true);
-        setAlertType("error")
-        setAlertMessage(response.data.Error.Message);
-      }
-      else {
-        const data = response.data.ResponseData.Compare_content;
-        setCurrentVersion(data.current_version);
-        if (data.Update_content) {
-          setUpdateContent(data.Update_content);
-          if (!init) {
-            setShowUpdateLog(true);
-            setDisable(false);
-          }
+      let data = await cockpit.spawn(["docker", "inspect", "-f", "{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}", "websoft9-appmanage"]);
+      let IP = data.trim();
+      if (IP) {
+        let response = await cockpit.http({ "address": IP, "port": 5000 }).get("/AppUpdateList");
+        response = JSON.parse(response);
+        if (response.Error) {
+          setShowAlert(true);
+          setAlertType("error")
+          setAlertMessage(response.data.Error.Message);
         }
         else {
-          if (!init) {
-            setShowAlert(true);
-            setAlertType("success")
-            setAlertMessage(_("The system is already the latest version"));
-            setDisable(false);
+          const data = response.ResponseData.Compare_content;
+          setCurrentVersion(data.current_version);
+          if (data.Update_content) {
+            setUpdateContent(data.Update_content);
+            if (!init) {
+              setShowUpdateLog(true);
+              setDisable(false);
+            }
+          }
+          else {
+            if (!init) {
+              setShowAlert(true);
+              setAlertType("success")
+              setAlertMessage(_("The system is already the latest version"));
+              setDisable(false);
+            }
           }
         }
       }
@@ -87,19 +74,20 @@ function App() {
 
   const checkeAutoUpdate = async (flag) => {
     try {
-      const response = await axios.get("/AppManage/AppAutoUpdate", {
-        params: {
-          auto_update: flag
+      let data = await cockpit.spawn(["docker", "inspect", "-f", "{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}", "websoft9-appmanage"]);
+      let IP = data.trim();
+      if (IP) {
+        let response = await cockpit.http({ "address": IP, "port": 5000 }).get("/AppAutoUpdate", { auto_update: flag });
+        response = JSON.parse(response);
+        if (response.data.Error) {
+          setShowAlert(true);
+          setAlertType("error")
+          setAlertMessage(response.data.Error.Message);
         }
-      });
-      if (response.data.Error) {
-        setShowAlert(true);
-        setAlertType("error")
-        setAlertMessage(response.data.Error.Message);
-      }
-      else {
-        let autoUpdateState = response.data.ResponseData.auto_update === "true";
-        setAutoUpdate(autoUpdateState);
+        else {
+          let autoUpdateState = response.data.ResponseData.auto_update === "true";
+          setAutoUpdate(autoUpdateState);
+        }
       }
     }
     catch (error) {
@@ -167,9 +155,8 @@ function App() {
 
   useEffect(() => {
     async function init() {
-      await getCredentials();
       await checkeUpdate(true);
-      await checkeAutoUpdate();
+      //await checkeAutoUpdate();
     }
     init();
   }, []);
@@ -249,18 +236,6 @@ function App() {
                 </AccordionSummary>
                 <AccordionDetails>
                   <Typography>
-                    {/* <Row className="mb-2 align-items-center">
-                      <Col xs={12} md={12} className="d-flex">
-                        <Form>
-                          <Form.Check
-                            type="switch"
-                            id="system-switch"
-                            label={_("Enable automatic updates")}
-                          />
-                        </Form>
-                      </Col>
-                    </Row> */}
-
                     <Row className="mb-2 align-items-center">
                       <Col xs={6} md={6} className="d-flex">
                         {_("Current Version")}{" : "}<span style={{ color: "#0b5ed7" }}>{currentVersion}</span>
@@ -281,73 +256,52 @@ function App() {
           </Card>
         </Col>
       </Row >
-      {/* {
-        <Modal show={showComplete} onHide={showCompleteClose} size="lg"
-          scrollable="true" backdrop="static" >
-          <Modal.Header onHide={showCompleteClose} closeButton className={classNames('modal-colored-header', 'bg-primary')} style={{ color: "#fff" }}>
-            {_("System Updates")}
-          </Modal.Header>
-          <Modal.Body className="row" >
-            {_("The system update has been completed. Please restart the service to use the new features.")}
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="primary" onClick={systemRestart}>
-              {_("Restart Now")}
-            </Button>
-          </Modal.Footer>
-        </Modal >
-      } */}
-      {
-        showConfirm && <Modal show={showConfirm} onHide={showConfirmClose} size="lg"
-          scrollable="true" backdrop="static" >
-          <Modal.Header onHide={showConfirmClose} closeButton className={classNames('modal-colored-header', 'bg-warning')} style={{ color: "#fff" }}>
-            {_("System Updates")}
-          </Modal.Header>
-          <Modal.Body className="row" >
-            {_("The update operation requires restarting the service. Do you want to continue?")}
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="light" onClick={showConfirmClose}>
-              {_("Close")}
-            </Button>
-            <Button variant='warning' className='bg-warning' onClick={systemUpdate}>
-              {_("Update")}
-            </Button>
-          </Modal.Footer>
-        </Modal >
-      }
-      {
-        showUpdateLog && <Modal show={showUpdateLog} onHide={updateLogClose} size="lg"
-          scrollable="true" backdrop="static" >
-          <Modal.Header onHide={updateLogClose} closeButton className={classNames('modal-colored-header', 'bg-primary')} style={{ color: "#fff" }}>
-            {_("Update Log")}
-          </Modal.Header>
-          <Modal.Body className="row" >
-            <p><strong>{_("Latest Version")}</strong>{" : "}<span style={{ color: "#0b5ed7" }}>{updateContent.latest_version}</span></p>
-            <p><strong>{_("Update Time")}</strong>{" : "}{updateContent.date}</p>
-            <p><strong>{_("Update Content")}</strong>{" : "}</p>
-            {updateContent.content.map((item, index) => (
-              <p key={index}>{index + 1}{" : "}{item}</p>
-            ))}
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="light" onClick={updateLogClose}>
-              {_("Close")}
-            </Button>
-            <Button variant='primary' className='bg-primary' onClick={() => { setShowConfirm(true); setShowUpdateLog(false); }}>
-              {_("Update")}
-            </Button>
-          </Modal.Footer>
-        </Modal >
-      }
-      {
-        showAlert &&
-        <Snackbar open={showAlert} autoHideDuration={5000} onClose={handleClose} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
-          <Alert onClose={handleClose} severity={alertType} sx={{ width: '100%' }}>
-            {alertMessage}
-          </Alert>
-        </Snackbar>
-      }
+      <Modal show={showConfirm} onHide={showConfirmClose} size="lg"
+        scrollable="true" backdrop="static" >
+        <Modal.Header onHide={showConfirmClose} closeButton className={classNames('modal-colored-header', 'bg-warning')} style={{ color: "#fff" }}>
+          {_("System Updates")}
+        </Modal.Header>
+        <Modal.Body className="row" >
+          {_("The update operation requires restarting the service. Do you want to continue?")}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light" onClick={showConfirmClose}>
+            {_("Close")}
+          </Button>
+          <Button variant='warning' className='bg-warning' onClick={systemUpdate}>
+            {_("Update")}
+          </Button>
+        </Modal.Footer>
+      </Modal >
+
+      <Modal show={showUpdateLog} onHide={updateLogClose} size="lg"
+        scrollable="true" backdrop="static" >
+        <Modal.Header onHide={updateLogClose} closeButton className={classNames('modal-colored-header', 'bg-primary')} style={{ color: "#fff" }}>
+          {_("Update Log")}
+        </Modal.Header>
+        <Modal.Body className="row" >
+          <p><strong>{_("Latest Version")}</strong>{" : "}<span style={{ color: "#0b5ed7" }}>{updateContent?.latest_version}</span></p>
+          <p><strong>{_("Update Time")}</strong>{" : "}{updateContent?.date}</p>
+          <p><strong>{_("Update Content")}</strong>{" : "}</p>
+          {updateContent?.content.map((item, index) => (
+            <p key={index}>{index + 1}{" : "}{item}</p>
+          ))}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light" onClick={updateLogClose}>
+            {_("Close")}
+          </Button>
+          <Button variant='primary' className='bg-primary' onClick={() => { setShowConfirm(true); setShowUpdateLog(false); }}>
+            {_("Update")}
+          </Button>
+        </Modal.Footer>
+      </Modal >
+
+      <Snackbar open={showAlert} autoHideDuration={5000} onClose={handleClose} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
+        <Alert onClose={handleClose} severity={alertType} sx={{ width: '100%' }}>
+          {alertMessage}
+        </Alert>
+      </Snackbar>
     </>
   );
 }
