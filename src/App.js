@@ -8,7 +8,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import classNames from 'classnames';
 import cockpit from 'cockpit';
 import React, { useEffect, useState } from 'react';
-import { Button, Card, Col, Form, Modal, Row } from 'react-bootstrap';
+import { Button, Card, Col, Modal, Row } from 'react-bootstrap';
 import FullModal from "react-modal";
 import "./App.css";
 import Spinner from './Spinner';
@@ -21,8 +21,7 @@ const Alert = React.forwardRef(function Alert(props, ref) {
 
 function App() {
   const [showUpdateLog, setShowUpdateLog] = useState(false); //用于更新弹窗
-  const [currentVersion, setCurrentVersion] = useState(""); //用于存储当前版本
-  const [updateContent, setUpdateContent] = useState(null); //用于存储更新数据
+  const [updateContent, setUpdateContent] = useState({}); //用于存储更新内容
   const [showAlert, setShowAlert] = useState(false); //用于是否显示错误提示
   const [alertMessage, setAlertMessage] = useState("");//用于显示错误提示消息
   const [disable, setDisable] = useState(false);//用于更新按钮禁用
@@ -30,11 +29,14 @@ function App() {
   const [alertType, setAlertType] = useState("");  //用于确定弹窗的类型：error\success
   const [showConfirm, setShowConfirm] = useState(false); //用于显示确认更新弹窗
   const [showComplete, setShowComplete] = useState(false); //用于显示更新完成提示弹窗
-  const [autoUpdate, setAutoUpdate] = useState(false); //用于自动更新标识
+  const [loading, setLoading] = useState(false);
 
   const checkeUpdate = async (init) => {
+    if (init) {
+      setLoading(true);
+    }
     try {
-      let data = await cockpit.spawn(["docker", "inspect", "-f", "{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}", "websoft9-appmanage"]);
+      let data = await cockpit.spawn(["docker", "inspect", "-f", "{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}", "websoft9-appmanage"], { superuser: "require" });
       let IP = data.trim();
       if (IP) {
         let response = await cockpit.http({ "address": IP, "port": 5000 }).get("/AppUpdateList");
@@ -42,24 +44,18 @@ function App() {
         if (response.Error) {
           setShowAlert(true);
           setAlertType("error")
-          setAlertMessage(response.data.Error.Message);
+          setAlertMessage(response.Error.Message);
         }
         else {
-          const data = response.ResponseData.Compare_content;
-          setCurrentVersion(data.current_version);
-          if (data.Update_content) {
-            setUpdateContent(data.Update_content);
-            if (!init) {
-              setShowUpdateLog(true);
-              setDisable(false);
-            }
-          }
-          else {
-            if (!init) {
+          setUpdateContent(response.ResponseData.Compare_content); //获取更新内容
+
+          if (!init) { //如果不是第一次加载
+            if (!response.ResponseData.Compare_content.update) { //如果没有更新
               setShowAlert(true);
               setAlertType("success")
               setAlertMessage(_("The system is already the latest version"));
-              setDisable(false);
+            } else {
+              setShowUpdateLog(true);
             }
           }
         }
@@ -70,32 +66,11 @@ function App() {
       setAlertType("error")
       setAlertMessage(error);
     }
+    finally {
+      setLoading(false);
+    }
   };
 
-  const checkeAutoUpdate = async (flag) => {
-    try {
-      let data = await cockpit.spawn(["docker", "inspect", "-f", "{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}", "websoft9-appmanage"]);
-      let IP = data.trim();
-      if (IP) {
-        let response = await cockpit.http({ "address": IP, "port": 5000 }).get("/AppAutoUpdate", { auto_update: flag });
-        response = JSON.parse(response);
-        if (response.data.Error) {
-          setShowAlert(true);
-          setAlertType("error")
-          setAlertMessage(response.data.Error.Message);
-        }
-        else {
-          let autoUpdateState = response.data.ResponseData.auto_update === "true";
-          setAutoUpdate(autoUpdateState);
-        }
-      }
-    }
-    catch (error) {
-      setShowAlert(true);
-      setAlertType("error")
-      setAlertMessage(error);
-    }
-  };
 
   const systemUpdate = async () => {
     showConfirmClose();
@@ -103,12 +78,11 @@ function App() {
     setShowUpdateLog(false);
 
     //调用更新脚本
-    var script = "curl https://websoft9.github.io/StackHub/install/update.sh | bash";
-    cockpit.script(script).then(() => {
+    var script = "curl https://websoft9.github.io/websoft9/install/update.sh | bash";
+    cockpit.spawn(["/bin/bash", "-c", script]).then(() => {
       setShowMask(false);
       closeFullModal();
       systemRestart();
-
     }).catch(exception => {
       setShowAlert(true);
       setAlertType("error")
@@ -119,8 +93,8 @@ function App() {
 
   const systemRestart = async () => {
     setShowComplete(false);
-    var script = "systemctl restart cockpit";
-    cockpit.script(script).then(() => {
+    var script = "sudo systemctl daemon-reload && sudo systemctl restart cockpit.socket && sudo systemctl restart cockpit.service && sudo systemctl enable --now cockpit.socket && sudo systemctl enable --now cockpit.service";
+    cockpit.spawn([script]).then(() => {
       console.log("system restart successful");
     }).catch(exception => {
       setShowAlert(true);
@@ -156,10 +130,11 @@ function App() {
   useEffect(() => {
     async function init() {
       await checkeUpdate(true);
-      //await checkeAutoUpdate();
     }
     init();
   }, []);
+
+  if (loading) return <Spinner className='dis_mid' />
 
   return (
     <>
@@ -190,7 +165,7 @@ function App() {
         <img src="../settings/loading.gif" alt="loading" width="200px" style={{ display: "block", margin: "0 auto" }} />
         <h1 style={{ textAlign: "center", color: "#ffc31a" }}>
           <strong>
-            {_("During the system update, it will take approximately 5-10 minutes. Please be patient and do not operate during the process to avoid unknown errors.")}
+            {_("During the system update, it will take approximately 3-5 minutes. Please be patient and do not operate during the process to avoid unknown errors.")}
           </strong>
         </h1>
       </FullModal>
@@ -208,29 +183,6 @@ function App() {
                   id="panel1a-header"
                 >
                   <Typography>
-                    <label className="me-2 fs-5 d-block">{_("App Store Updates")}</label>
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <Typography>
-                    <Form>
-                      <Form.Check
-                        checked={autoUpdate}
-                        type="switch"
-                        id="store-switch"
-                        label={_("Enable automatic updates")}
-                        onChange={(event) => checkeAutoUpdate(event.target.checked)}
-                      />
-                    </Form>
-                  </Typography>
-                </AccordionDetails>
-              </Accordion>
-              <Accordion expanded={true} className='mb-2'>
-                <AccordionSummary
-                  aria-controls="panel1a-content"
-                  id="panel1a-header"
-                >
-                  <Typography>
                     <label className="me-2 fs-5 d-block">{_("System Updates")}</label>
                   </Typography>
                 </AccordionSummary>
@@ -238,15 +190,30 @@ function App() {
                   <Typography>
                     <Row className="mb-2 align-items-center">
                       <Col xs={6} md={6} className="d-flex">
-                        {_("Current Version")}{" : "}<span style={{ color: "#0b5ed7" }}>{currentVersion}</span>
+                        {_("Current Version")}{" ："}<span style={{ color: "#0b5ed7" }}>{" "}{updateContent?.local_version}</span>
+                        {/* {_("Current Version")}{" : "} */}
+                        {/* <Badge bg="" className="me-1 bg-primary">
+                          {updateContent?.local_version}
+                        </Badge> */}
                       </Col>
                       <Col xs={6} md={6} className="d-flex">
-                        <Button variant="primary" size="sm" className="me-2" disabled={disable}
-                          onClick={() => {
-                            setDisable(true); checkeUpdate(false);
-                          }} >
-                          {disable && <Spinner className="spinner-border-sm me-1" tag="span" color="white" />}  {_("Check for updates")}
-                        </Button>
+                        {
+                          updateContent.update ? <Button variant="primary" size="sm" className="position-relative me-2"
+                            onClick={() => setShowUpdateLog(true)}>
+                            {_("Update Available")}
+                            <span className="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
+                              <span className="visually-hidden">New alerts</span>
+                            </span>
+                          </Button> : <Button variant="primary" size="sm" className="me-2" disabled={disable}
+                            onClick={async () => {
+                              setDisable(true);
+                              await checkeUpdate(false);
+                              setDisable(false);
+                            }} >
+                            {disable && <Spinner className="spinner-border-sm me-1" tag="span" color="white" />}
+                            {_("Check for updates")}
+                          </Button>
+                        }
                       </Col>
                     </Row>
                   </Typography>
@@ -266,7 +233,7 @@ function App() {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="light" onClick={showConfirmClose}>
-            {_("Close")}
+            {_("Ignore")}
           </Button>
           <Button variant='warning' className='bg-warning' onClick={systemUpdate}>
             {_("Update")}
@@ -280,16 +247,16 @@ function App() {
           {_("Update Log")}
         </Modal.Header>
         <Modal.Body className="row" >
-          <p><strong>{_("Latest Version")}</strong>{" : "}<span style={{ color: "#0b5ed7" }}>{updateContent?.latest_version}</span></p>
+          <p><strong>{_("Latest Version")}</strong>{" : "}<span style={{ color: "#0b5ed7" }}>{updateContent?.target_version}</span></p>
           <p><strong>{_("Update Time")}</strong>{" : "}{updateContent?.date}</p>
           <p><strong>{_("Update Content")}</strong>{" : "}</p>
-          {updateContent?.content.map((item, index) => (
-            <p key={index}>{index + 1}{" : "}{item}</p>
+          {updateContent?.content?.map((item, index) => (
+            <p key={index}>{item}</p>
           ))}
         </Modal.Body>
         <Modal.Footer>
           <Button variant="light" onClick={updateLogClose}>
-            {_("Close")}
+            {_("Ignore")}
           </Button>
           <Button variant='primary' className='bg-primary' onClick={() => { setShowConfirm(true); setShowUpdateLog(false); }}>
             {_("Update")}
@@ -297,7 +264,7 @@ function App() {
         </Modal.Footer>
       </Modal >
 
-      <Snackbar open={showAlert} autoHideDuration={5000} onClose={handleClose} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
+      <Snackbar open={showAlert} autoHideDuration={3000} onClose={handleClose} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
         <Alert onClose={handleClose} severity={alertType} sx={{ width: '100%' }}>
           {alertMessage}
         </Alert>
