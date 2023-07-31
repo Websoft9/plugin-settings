@@ -100,14 +100,6 @@ function App() {
       setAlertType("error")
       setAlertMessage(exception.toString());
     });
-
-    // cockpit.spawn(["systemctl", "daemon-reload", "&&", "systemctl", "restart", "cockpit.socket", "&&", "systemctl", "restart", "cockpit.service"], { superuser: "require" }).then(() => {
-    //   console.log("system restart successful");
-    // }).catch(exception => {
-    //   setShowAlert(true);
-    //   setAlertType("error")
-    //   setAlertMessage(exception.toString());
-    // });
   }
 
   const updateLogClose = () => {
@@ -145,7 +137,8 @@ function App() {
 
   return (
     <>
-      <FullModal parentSelector={() => window.parent.document.getElementById("main")}
+      {/* <FullModal parentSelector={() => window.parent.document.getElementById("main")} */}
+      <FullModal parentSelector={() => window.parent.document.body}
         isOpen={showMask}
         onRequestClose={closeFullModal}
         shouldCloseOnOverlayClick={false}
