@@ -1,7 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-ossutil64
 node_modules
+build
 mk.sh
 settings
+artifacts
 settings-*.zip
