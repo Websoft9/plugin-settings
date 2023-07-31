@@ -91,16 +91,23 @@ function App() {
     });
   }
 
-  const systemRestart = async () => {
+  const systemRestart = () => {
     setShowComplete(false);
-    var script = "sudo systemctl daemon-reload && sudo systemctl restart cockpit.socket && sudo systemctl restart cockpit.service && sudo systemctl enable --now cockpit.socket && sudo systemctl enable --now cockpit.service";
-    cockpit.spawn([script]).then(() => {
+    cockpit.script("systemctl daemon-reload && systemctl restart cockpit.socket && systemctl restart cockpit.service").then(() => {
       console.log("system restart successful");
     }).catch(exception => {
       setShowAlert(true);
       setAlertType("error")
       setAlertMessage(exception.toString());
     });
+
+    // cockpit.spawn(["systemctl", "daemon-reload", "&&", "systemctl", "restart", "cockpit.socket", "&&", "systemctl", "restart", "cockpit.service"], { superuser: "require" }).then(() => {
+    //   console.log("system restart successful");
+    // }).catch(exception => {
+    //   setShowAlert(true);
+    //   setAlertType("error")
+    //   setAlertMessage(exception.toString());
+    // });
   }
 
   const updateLogClose = () => {
