@@ -59,9 +59,9 @@ jobs:
           mkdir artifacts
           mv build settings
           cp CHANGELOG.md settings
-          cp appstore.json settings
+          cp settings.json settings
           cp CHANGELOG.md artifacts/
-          cp appstore.json artifacts/
+          cp settings.json artifacts/
           zip -r settings-${{ steps.update_data.outputs.PLUGIN_VERSION }}.zip settings/
           mv settings-${{ steps.update_data.outputs.PLUGIN_VERSION }}.zip artifacts/
 
