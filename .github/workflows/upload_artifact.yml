@@ -60,9 +60,11 @@ jobs:
           mv build settings
           cp CHANGELOG.md settings
           cp settings.json settings
+          cp -r docs settings
+          rsync -av --exclude='changelog_latest.md' *.md settings/
+          zip -r settings-${{ steps.update_data.outputs.PLUGIN_VERSION }}.zip settings/
           cp CHANGELOG.md artifacts/
           cp settings.json artifacts/
-          zip -r settings-${{ steps.update_data.outputs.PLUGIN_VERSION }}.zip settings/
           mv settings-${{ steps.update_data.outputs.PLUGIN_VERSION }}.zip artifacts/
 
       - name: Upload To Azure Blob

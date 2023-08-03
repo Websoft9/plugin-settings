@@ -9,6 +9,7 @@ import classNames from 'classnames';
 import cockpit from 'cockpit';
 import React, { useEffect, useState } from 'react';
 import { Button, Card, Col, Modal, Row } from 'react-bootstrap';
+import RbAlert from 'react-bootstrap/Alert';
 import FullModal from "react-modal";
 import "./App.css";
 import Spinner from './Spinner';
@@ -30,44 +31,46 @@ function App() {
   const [showConfirm, setShowConfirm] = useState(false); //用于显示确认更新弹窗
   const [showComplete, setShowComplete] = useState(false); //用于显示更新完成提示弹窗
   const [loading, setLoading] = useState(false);
+  const [showProblem, setshowProblem] = useState(false);  //用于控制是否显示 cockpit的错误消息
+  const [cockpitProblem, setCockpitProblem] = useState(null); //用于显示cockpit的错误消息
 
   const checkeUpdate = async (init) => {
     if (init) {
       setLoading(true);
     }
     try {
-      let data = await cockpit.spawn(["docker", "inspect", "-f", "{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}", "websoft9-appmanage"], { superuser: "require" });
-      let IP = data.trim();
-      if (IP) {
-        let response = await cockpit.http({ "address": IP, "port": 5000 }).get("/AppUpdateList");
-        response = JSON.parse(response);
-        if (response.Error) {
-          setShowAlert(true);
-          setAlertType("error")
-          setAlertMessage(response.Error.Message);
-        }
-        else {
-          setUpdateContent(response.ResponseData.Compare_content); //获取更新内容
+      let response = await cockpit.http({ "address": "websoft9-appmanage", "port": 5000 }).get("/AppUpdateList");
+      response = JSON.parse(response);
+      if (response.Error) {
+        setShowAlert(true);
+        setAlertType("error")
+        setAlertMessage(response.Error.Message);
+      }
+      else {
+        setUpdateContent(response.ResponseData.Compare_content); //获取更新内容
 
-          if (!init) { //如果不是第一次加载
-            if (!response.ResponseData.Compare_content.update) { //如果没有更新
-              setShowAlert(true);
-              setAlertType("success")
-              setAlertMessage(_("The system is already the latest version"));
-            } else {
-              setShowUpdateLog(true);
-            }
+        if (!init) { //如果不是第一次加载
+          if (!response.ResponseData.Compare_content.update) { //如果没有更新
+            setShowAlert(true);
+            setAlertType("success")
+            setAlertMessage(_("The system is already the latest version"));
+          } else {
+            setShowUpdateLog(true);
           }
         }
       }
+      setLoading(false);
     }
     catch (error) {
-      setShowAlert(true);
-      setAlertType("error")
-      setAlertMessage(error);
-    }
-    finally {
-      setLoading(false);
+      setshowProblem(true);
+      if (error.problem) {
+        setCockpitProblem(error.problem);
+      }
+      else {
+        setShowAlert(true);
+        setAlertType("error")
+        setAlertMessage(error);
+      }
     }
   };
 
@@ -133,11 +136,17 @@ function App() {
     init();
   }, []);
 
-  if (loading) return <Spinner className='dis_mid' />
+  if (loading) return (
+    <div className="d-flex align-items-center justify-content-center m-5" style={{ flexDirection: "column" }}>
+      <Spinner animation="border" variant="secondary" className='mb-5' />
+      {showProblem && <RbAlert variant="danger" className="my-2">
+        {cockpitProblem}
+      </RbAlert>}
+    </div>
+  );
 
   return (
     <>
-      {/* <FullModal parentSelector={() => window.parent.document.getElementById("main")} */}
       <FullModal parentSelector={() => window.parent.document.body}
         isOpen={showMask}
         onRequestClose={closeFullModal}
@@ -191,10 +200,6 @@ function App() {
                     <Row className="mb-2 align-items-center">
                       <Col xs={6} md={6} className="d-flex">
                         {_("Current Version")}{" ："}<span style={{ color: "#0b5ed7" }}>{" "}{updateContent?.local_version}</span>
-                        {/* {_("Current Version")}{" : "} */}
-                        {/* <Badge bg="" className="me-1 bg-primary">
-                          {updateContent?.local_version}
-                        </Badge> */}
                       </Col>
                       <Col xs={6} md={6} className="d-flex">
                         {
