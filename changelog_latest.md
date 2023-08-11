@@ -1,1 +1,1 @@
-1. Fix bugs
+1. Fix some known bugs
