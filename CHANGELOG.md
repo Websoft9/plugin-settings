@@ -1,3 +1,5 @@
+## 0.0.4 release on 2023-08-15
+1. Optimize Multilingual
 ## 0.0.3 release on 2023-08-11
 1. Fix some known bugs
 ## 0.0.2 release on 2023-08-03
