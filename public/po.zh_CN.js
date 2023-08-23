@@ -106,6 +106,18 @@
     "Update Log": [
         null,
         "更新日志"
+    ],
+    "Enabled": [
+        null,
+        "已开启"
+    ],
+    "Disabled": [
+        null,
+        "已关闭"
+    ],
+    "App Store Preview Push": [
+        null,
+        "应用商店预览版推送"
     ]
 }));
 

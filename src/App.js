@@ -8,7 +8,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import classNames from 'classnames';
 import cockpit from 'cockpit';
 import React, { useEffect, useState } from 'react';
-import { Button, Card, Col, Modal, Row } from 'react-bootstrap';
+import { Button, Card, Col, Form, Modal, Row } from 'react-bootstrap';
 import RbAlert from 'react-bootstrap/Alert';
 import FullModal from "react-modal";
 import "./App.css";
@@ -33,6 +33,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [showProblem, setshowProblem] = useState(false);  //用于控制是否显示 cockpit的错误消息
   const [cockpitProblem, setCockpitProblem] = useState(null); //用于显示cockpit的错误消息
+  const [previewStatus, setPreviewStatus] = useState(null); //用于显示是否开启AppStore接收预览版
 
   const checkeUpdate = async (init) => {
     if (init) {
@@ -74,6 +75,37 @@ function App() {
     }
   };
 
+  const checkeAppStorePreview = async (search) => {
+    try {
+      let response;
+      if (search) {
+        response = await cockpit.http({ "address": "websoft9-appmanage", "port": 5000 }).get("/AppPreviewUpdate");
+      }
+      else {
+        response = await cockpit.http({ "address": "websoft9-appmanage", "port": 5000 }).get("/AppPreviewUpdate", { preview: !previewStatus });
+      }
+      response = JSON.parse(response);
+      if (response.Error) {
+        setShowAlert(true);
+        setAlertType("error")
+        setAlertMessage(response.Error.Message);
+      }
+      else {
+        setPreviewStatus(JSON.parse(response.ResponseData.reviewUpdate));
+      }
+    }
+    catch (error) {
+      setshowProblem(true);
+      if (error.problem) {
+        setCockpitProblem(error.problem);
+      }
+      else {
+        setShowAlert(true);
+        setAlertType("error")
+        setAlertMessage(error);
+      }
+    }
+  };
 
   const systemUpdate = async () => {
     showConfirmClose();
@@ -132,6 +164,7 @@ function App() {
   useEffect(() => {
     async function init() {
       await checkeUpdate(true);
+      await checkeAppStorePreview(true);
     }
     init();
   }, []);
@@ -186,6 +219,33 @@ function App() {
               <label className="me-2 fs-5 d-block">{_("System Setting")}</label>
             </Card.Header>
             <Card.Body>
+              <Accordion expanded={true} className='mb-2'>
+                <AccordionSummary
+                  aria-controls="panel1a-content"
+                  id="panel1a-header"
+                >
+                  <Typography>
+                    <label className="me-2 fs-5 d-block">{_("App Store Preview Push")}</label>
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Typography>
+                    <Row className="mb-2 align-items-center">
+                      <Col xs={12} md={12} className="d-flex">
+                        <Form>
+                          <Form.Check
+                            type="switch"
+                            id="custom-switch"
+                            checked={previewStatus}
+                            label={previewStatus ? _("Enabled") : _("Disabled")}
+                            onChange={() => checkeAppStorePreview()}
+                          />
+                        </Form>
+                      </Col>
+                    </Row>
+                  </Typography>
+                </AccordionDetails>
+              </Accordion>
               <Accordion expanded={true} className='mb-2'>
                 <AccordionSummary
                   aria-controls="panel1a-content"

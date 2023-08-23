@@ -1,1 +1,1 @@
-1. Optimize Multilingual
+1. New App Store preview push function added
