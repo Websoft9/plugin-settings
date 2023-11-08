@@ -1,24 +1,44 @@
+import FileCopyIcon from '@mui/icons-material/FileCopy';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
+import { IconButton } from '@mui/material';
 import Accordion from '@mui/material/Accordion';
 import AccordionDetails from '@mui/material/AccordionDetails';
-import AccordionSummary from '@mui/material/AccordionSummary';
 import MuiAlert from '@mui/material/Alert';
+import InputAdornment from '@mui/material/InputAdornment';
 import Snackbar from '@mui/material/Snackbar';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import classNames from 'classnames';
 import cockpit from 'cockpit';
 import React, { useEffect, useState } from 'react';
-import { Button, Card, Col, Form, Modal, Row } from 'react-bootstrap';
+import { Button, Card, Col, Modal, Row } from 'react-bootstrap';
 import RbAlert from 'react-bootstrap/Alert';
 import FullModal from "react-modal";
 import "./App.css";
-import Spinner from './Spinner';
+import Spinner from './components/Spinner';
 
 const _ = cockpit.gettext;
 
 const Alert = React.forwardRef(function Alert(props, ref) {
   return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
 });
+
+// 获取Api Key
+const getApiKey = async () => {
+  try {
+    var script = "docker exec -i websoft9-apphub apphub getconfig --section api_key --key key";
+    const api_key = (await cockpit.spawn(["/bin/bash", "-c", script])).trim();
+    if (!api_key) {
+      return <p>Error: Api key is empty </p>;
+    }
+    return api_key
+  }
+  catch (error) {
+    console.log(error);
+  }
+}
 
 function App() {
   const [showUpdateLog, setShowUpdateLog] = useState(false); //用于更新弹窗
@@ -34,13 +54,57 @@ function App() {
   const [showProblem, setshowProblem] = useState(false);  //用于控制是否显示 cockpit的错误消息
   const [cockpitProblem, setCockpitProblem] = useState(null); //用于显示cockpit的错误消息
   const [previewStatus, setPreviewStatus] = useState(null); //用于显示是否开启AppStore接收预览版
+  const [apikey, setApikey] = useState(null);
+  const [cockpitPort, setCockpitPort] = useState(null);
+  const [wildcardDomain, setWildcardDomain] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const baseURL = `${window.location.protocol}//${window.location.hostname}`;
+
+  const handleTogglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
+  //ApiKey复制
+  const copyToClipboard = (text) => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => {
+        setShowAlert(true);
+        setAlertMessage(_("ApiKey copied successfully"));
+        setAlertType("success");
+      }).catch(err => {
+        setShowAlert(true);
+        setAlertMessage(_("ApiKey copied failed"));
+        setAlertType("error");
+      });
+    }
+    else {
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+
+        setShowAlert(true);
+        setAlertMessage(_("ApiKey copied successfully"));
+        setAlertType("success");
+      }
+      catch (err) {
+        setShowAlert(true);
+        setAlertMessage(_("ApiKey copied failed"));
+        setAlertType("error");
+      }
+    }
+  }
 
   const checkeUpdate = async (init) => {
     if (init) {
       setLoading(true);
     }
     try {
-      let response = await cockpit.http({ "address": "websoft9-appmanage", "port": 5000 }).get("/AppUpdateList");
+      let response = await cockpit.http({ "address": "websoft9-apphub", "port": 8080 }).get("/AppUpdateList");
       response = JSON.parse(response);
       if (response.Error) {
         setShowAlert(true);
@@ -61,38 +125,6 @@ function App() {
         }
       }
       setLoading(false);
-    }
-    catch (error) {
-      setshowProblem(true);
-      if (error.problem) {
-        setCockpitProblem(error.problem);
-      }
-      else {
-        setShowAlert(true);
-        setAlertType("error")
-        setAlertMessage(error);
-      }
-    }
-  };
-
-  const checkeAppStorePreview = async (search) => {
-    try {
-      let response;
-      if (search) {
-        response = await cockpit.http({ "address": "websoft9-appmanage", "port": 5000 }).get("/AppPreviewUpdate");
-      }
-      else {
-        response = await cockpit.http({ "address": "websoft9-appmanage", "port": 5000 }).get("/AppPreviewUpdate", { preview: !previewStatus });
-      }
-      response = JSON.parse(response);
-      if (response.Error) {
-        setShowAlert(true);
-        setAlertType("error")
-        setAlertMessage(response.Error.Message);
-      }
-      else {
-        setPreviewStatus(JSON.parse(response.ResponseData.reviewUpdate));
-      }
     }
     catch (error) {
       setshowProblem(true);
@@ -161,10 +193,37 @@ function App() {
     setShowMask(false);
   };
 
+  const getSettings = async () => {
+    fetch(`${baseURL}/api/settings`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'x-api-key': await getApiKey()
+      }
+    }).then(async response => {
+      const settingsResponse = await response.json();
+      if (response.status === 200) {
+        setApikey(settingsResponse?.api_key?.key || "");
+        setCockpitPort(settingsResponse?.cockpit?.port || "");
+        setWildcardDomain(settingsResponse?.domain?.wildcard_domain || "");
+      }
+      else {
+        throw new Error(settingsResponse.details);
+      }
+    }).catch((error) => {
+      setShowAlert(true);
+      setAlertType("error")
+      setAlertMessage(error);
+      // setAlertMessage(_("Get System Settings Failed"));
+    });
+  }
+
+
   useEffect(() => {
     async function init() {
-      await checkeUpdate(true);
-      await checkeAppStorePreview(true);
+      setLoading(true);
+      await getSettings();
+      setLoading(false);
     }
     init();
   }, []);
@@ -220,33 +279,75 @@ function App() {
             </Card.Header>
             <Card.Body>
               <Accordion expanded={true} className='mb-2'>
-                <AccordionSummary
+                {/* <AccordionSummary
                   aria-controls="panel1a-content"
                   id="panel1a-header"
                 >
                   <Typography>
-                    <label className="me-2 fs-5 d-block">{_("App Store Preview Push")}</label>
+                    <label className="me-2 fs-5 d-block">{_("Api Key")}</label>
                   </Typography>
-                </AccordionSummary>
+                </AccordionSummary> */}
                 <AccordionDetails>
                   <Typography>
-                    <Row className="mb-2 align-items-center">
-                      <Col xs={12} md={12} className="d-flex">
-                        <Form>
-                          <Form.Check
-                            type="switch"
-                            id="custom-switch"
-                            checked={previewStatus}
-                            label={previewStatus ? _("Enabled") : _("Disabled")}
-                            onChange={() => checkeAppStorePreview()}
-                          />
-                        </Form>
+                    <Row className="mb-2 d-flex align-items-center">
+                      <Col xs={1} md={1} style={{ textAlign: "right" }}>
+                        <span>{_("System Port")}{" ："}</span>
+                      </Col>
+                      <Col>
+                        <TextField
+                          style={{ width: '800px' }}
+                          type="text"
+                          size="small"
+                          value={cockpitPort}
+                        />
                       </Col>
                     </Row>
+                    <Row className="mb-2 d-flex align-items-center">
+                      <Col xs={1} md={1} style={{ textAlign: "right" }}>
+                        <span>{_("Domain")}{" ："}</span>
+                      </Col>
+                      <Col>
+                        <TextField
+                          style={{ width: '800px' }}
+                          type="text"
+                          size="small"
+                          value={wildcardDomain}
+                        />
+                      </Col>
+                    </Row>
+                    <Row className="mb-2 d-flex align-items-center">
+                      <Col xs={1} md={1} style={{ textAlign: "right" }}>
+                        <span>{_("Api Key")}{" ："}</span>
+                      </Col>
+                      <Col>
+                        <TextField
+                          style={{ width: '800px' }}
+                          type={showPassword ? 'text' : 'password'}
+                          size="small"
+                          value={apikey}
+                          InputProps={{
+                            endAdornment: (
+                              <InputAdornment position="end">
+                                <IconButton
+                                  onClick={handleTogglePasswordVisibility}
+                                >
+                                  {showPassword ? <Visibility /> : <VisibilityOff />}
+                                </IconButton>
+                              </InputAdornment>
+                            ),
+                          }}
+                        />
+                        <IconButton title='Copy' onClick={() => copyToClipboard(apikey)}>
+                          <FileCopyIcon />
+                        </IconButton>
+                      </Col>
+                    </Row>
+
                   </Typography>
                 </AccordionDetails>
               </Accordion>
-              <Accordion expanded={true} className='mb-2'>
+
+              {/* <Accordion expanded={true} className='mb-2'>
                 <AccordionSummary
                   aria-controls="panel1a-content"
                   id="panel1a-header"
@@ -283,7 +384,7 @@ function App() {
                     </Row>
                   </Typography>
                 </AccordionDetails>
-              </Accordion>
+              </Accordion> */}
             </Card.Body>
           </Card>
         </Col>

@@ -118,6 +118,26 @@
     "App Store Preview Push": [
         null,
         "应用商店预览版推送"
+    ],
+    "ApiKey copied successfully": [
+        null,
+        "ApiKey复制成功"
+    ],
+    "ApiKey copied failed": [
+        null,
+        "ApiKey复制失败"
+    ],
+    "Get System Settings Failed": [
+        null,
+        "获取系统设置失败"
+    ],
+    "System Port": [
+        null,
+        "系统端口"
+    ],
+    "Domain": [
+        null,
+        "域名"
     ]
 }));
 
