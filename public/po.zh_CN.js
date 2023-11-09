@@ -131,13 +131,62 @@
         null,
         "获取系统设置失败"
     ],
-    "System Port": [
+    "Port": [
         null,
-        "系统端口"
+        "端口"
     ],
     "Domain": [
         null,
         "域名"
+    ],
+    "Port must be a number between 0 and 65535": [
+        null,
+        "端口必须是0到65535之间的数字"
+    ],
+    "Port must be a number": [
+        null,
+        "端口必须是数字"
+    ],
+    "Port can not be empty": [
+        null,
+        "端口不能为空"
+    ],
+    "Save Success": [
+        null,
+        "保存成功"
+    ],
+    "Domain can not be empty": [
+        null,
+        "域名不能为空"
+    ],
+    "Domain can not start with http:// or https://": [
+        null,
+        "域名不能以http://或https://开头"
+    ],
+    "If port not available, modifying it has no effect.": [
+        null,
+        "端口不可用则修改无效"
+    ],
+    "Resetting the Api Key may cause API calls to become invalid.Are you sure you want to reset ?": [
+        null,
+        "重置Api Key可能导致API调用失效，是否确认重置？"
+    ],
+    "Reset Api Key": [
+        null,
+        "重置Api Key"
+    ],
+    "Reset": [
+        null,
+        "重置"
+    ],
+    "Reset Api Key Failed": [
+        null,
+        "重置Api Key失败"
+    ],
+    "Reset Api Key Success": [
+        null,
+        "重置Api Key成功"
     ]
 }));
+
 
