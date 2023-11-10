@@ -167,7 +167,7 @@
         null,
         "端口不可用则修改无效"
     ],
-    "Resetting the Api Key may cause API calls to become invalid.Are you sure you want to reset ?": [
+    "Resetting the Api Key may cause API calls to become invalid. Are you sure you want to reset?": [
         null,
         "重置Api Key可能导致API调用失效，是否确认重置？"
     ],

@@ -25,6 +25,27 @@ import Spinner from './components/Spinner';
 
 const _ = cockpit.gettext;
 
+// 获取Api Key
+const getApiKey = async () => {
+  try {
+    var script = "docker exec -i websoft9-apphub apphub getconfig --section api_key --key key";
+    const api_key = (await cockpit.spawn(["/bin/bash", "-c", script], { superuser: "try" })).trim();
+    return api_key
+  }
+  catch (error) {
+    const errorText = [error.problem, error.reason, error.message]
+      .filter(item => typeof item === 'string')
+      .join(' ');
+
+    if (errorText.includes("permission denied")) {
+      throw new Error("Permission denied.");
+    }
+    else {
+      throw new Error(errorText || "Get Api Key Error");
+    }
+  }
+}
+
 const Alert = React.forwardRef(function Alert(props, ref) {
   return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
 });
@@ -67,7 +88,7 @@ const ResetApiKeyConform = (props) => {
               setDisable(true);
               setShowCloseButton(false);
               var script = "docker exec -i websoft9-apphub apphub genkey";
-              const api_key = (await cockpit.spawn(["/bin/bash", "-c", script])).trim();
+              const api_key = (await cockpit.spawn(["/bin/bash", "-c", script], { superuser: "try" })).trim();
               if (!api_key) {
                 setShowAlert(true);
                 setAlertType("error")
@@ -108,21 +129,6 @@ const ResetApiKeyConform = (props) => {
   );
 }
 
-// 获取Api Key
-const getApiKey = async () => {
-  try {
-    var script = "docker exec -i websoft9-apphub apphub getconfig --section api_key --key key";
-    const api_key = (await cockpit.spawn(["/bin/bash", "-c", script])).trim();
-    if (!api_key) {
-      return <p>Error: Api key is empty </p>;
-    }
-    return api_key
-  }
-  catch (error) {
-    console.log(error);
-  }
-}
-
 function App() {
   const [showUpdateLog, setShowUpdateLog] = useState(false); //用于更新弹窗
   const [updateContent, setUpdateContent] = useState({}); //用于存储更新内容
@@ -134,20 +140,18 @@ function App() {
   const [showConfirm, setShowConfirm] = useState(false); //用于显示确认更新弹窗
   const [showComplete, setShowComplete] = useState(false); //用于显示更新完成提示弹窗
   const [loading, setLoading] = useState(false);
-  const [showProblem, setshowProblem] = useState(false);  //用于控制是否显示 cockpit的错误消息
+  const [showProblem, setShowProblem] = useState(false);  //用于控制是否显示 cockpit的错误消息
   const [cockpitProblem, setCockpitProblem] = useState(null); //用于显示cockpit的错误消息
   const [previewStatus, setPreviewStatus] = useState(null); //用于显示是否开启AppStore接收预览版
   const [apikey, setApikey] = useState(null);
-  const [cockpitPort, setCockpitPort] = useState(null);
+  const [cockpitPort, setCockpitPort] = useState("");
   const [wildcardDomain, setWildcardDomain] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isPortEditing, setIsPortEditing] = useState(false);
   const [isWildcardDomainEditing, setIsWildcardDomainEditing] = useState(false);
   const [showConform, setShowConform] = useState(false); //用于显示确认重置Api Key弹窗
-
   const [originalCockpitPort, setOriginalCockpitPort] = useState(cockpitPort); //用于存储原始的cockpit端口
   const [originalDomain, setOriginalDomain] = useState(wildcardDomain); //用于存储原始的域名
-
   const baseURL = `${window.location.protocol}//${window.location.hostname}`;
 
   const showFatherAlert = (type, message) => {
@@ -222,7 +226,7 @@ function App() {
       setLoading(false);
     }
     catch (error) {
-      setshowProblem(true);
+      setShowProblem(true);
       if (error.problem) {
         setCockpitProblem(error.problem);
       }
@@ -310,7 +314,7 @@ function App() {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
-        'x-api-key': await getApiKey()
+        'x-api-key': apikey
       }
     }).then(async response => {
       const settingsResponse = await response.json();
@@ -333,13 +337,6 @@ function App() {
   };
 
   const handlerDomainSave = async () => {
-    // if (!wildcardDomain) {
-    //   setShowAlert(true);
-    //   setAlertType("error")
-    //   setAlertMessage(_("Domain can not be empty"));
-    //   return;
-    // }
-
     if (wildcardDomain.startsWith('http://') || wildcardDomain.startsWith('https://')) {
       setShowAlert(true);
       setAlertType("error")
@@ -361,7 +358,7 @@ function App() {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
-        'x-api-key': await getApiKey()
+        'x-api-key': apikey
       }
     }).then(async response => {
       const settingsResponse = await response.json();
@@ -397,34 +394,50 @@ function App() {
   };
 
   const getSettings = async () => {
+    setLoading(true);
+    let api_key = ""
+    try {
+      api_key = await getApiKey();
+      if (!api_key) {
+        setShowProblem(true);
+        setCockpitProblem(_("Api Key Not Set"));
+        return;
+      }
+      else {
+        setApikey(api_key);
+      }
+    }
+    catch (error) {
+      setShowProblem(true);
+      setCockpitProblem(error.message);
+      return;
+    }
+
     fetch(`${baseURL}/api/settings`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
-        'x-api-key': await getApiKey()
+        'x-api-key': api_key
       }
     }).then(async response => {
       const settingsResponse = await response.json();
       if (response.status === 200) {
         setApikey(settingsResponse?.api_key?.key || "");
-        setCockpitPort(settingsResponse?.cockpit?.port || "");
+        setCockpitPort(settingsResponse?.cockpit?.port.toString() || "");
         setWildcardDomain(settingsResponse?.domain?.wildcard_domain || "");
+        setLoading(false);
       }
       else {
         throw new Error(settingsResponse.details);
       }
     }).catch((error) => {
-      setShowAlert(true);
-      setAlertType("error")
-      // setAlertMessage(error);
-      setAlertMessage(_("Get System Settings Failed"));
+      setShowProblem(true);
+      setCockpitProblem(error.message || _("Get System Settings Failed"));
     });
   }
 
   async function init() {
-    setLoading(true);
     await getSettings();
-    setLoading(false);
   }
 
   useEffect(() => {
