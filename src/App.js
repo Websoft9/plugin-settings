@@ -22,29 +22,9 @@ import RbAlert from 'react-bootstrap/Alert';
 import FullModal from "react-modal";
 import "./App.css";
 import Spinner from './components/Spinner';
+import { GetSettings, SetSettings } from './helpers';
 
 const _ = cockpit.gettext;
-
-// 获取Api Key
-const getApiKey = async () => {
-  try {
-    var script = "docker exec -i websoft9-apphub apphub getconfig --section api_key --key key";
-    const api_key = (await cockpit.spawn(["/bin/bash", "-c", script], { superuser: "try" })).trim();
-    return api_key
-  }
-  catch (error) {
-    const errorText = [error.problem, error.reason, error.message]
-      .filter(item => typeof item === 'string')
-      .join(' ');
-
-    if (errorText.includes("permission denied")) {
-      throw new Error("Permission denied.");
-    }
-    else {
-      throw new Error(errorText || "Get Api Key Error");
-    }
-  }
-}
 
 const Alert = React.forwardRef(function Alert(props, ref) {
   return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
@@ -305,35 +285,20 @@ function App() {
       return;
     }
 
-    const portParams = new URLSearchParams({
-      key: "port",
-      value: cockpitPort
-    });
+    try {
+      const settingsResponse = await SetSettings("cockpit", { key: "port", value: cockpitPort });
+      setIsPortEditing(false);
+      setShowAlert(true);
+      setAlertType("success")
+      setAlertMessage(_("Save Success"));
 
-    fetch(`${baseURL}/api/settings/cockpit?${portParams.toString()}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        'x-api-key': apikey
-      }
-    }).then(async response => {
-      const settingsResponse = await response.json();
-      if (response.status === 200) {
-        setIsPortEditing(false);
-        setShowAlert(true);
-        setAlertType("success")
-        setAlertMessage(_("Save Success"));
-
-        init();
-      }
-      else {
-        throw new Error(settingsResponse.details);
-      }
-    }).catch((error) => {
+      init();
+    }
+    catch (error) {
       setShowAlert(true);
       setAlertType("error")
       setAlertMessage(error.message);
-    });
+    }
   };
 
   const handlerDomainSave = async () => {
@@ -349,37 +314,21 @@ function App() {
       return;
     }
 
-    const domainParams = new URLSearchParams({
-      key: "wildcard_domain",
-      value: wildcardDomain
-    });
+    try {
+      const settingsResponse = await SetSettings("domain", { key: "wildcard_domain", value: wildcardDomain });
+      setIsWildcardDomainEditing(false);
+      setShowAlert(true);
+      setAlertType("success")
+      setAlertMessage(_("Save Success"));
 
-    fetch(`${baseURL}/api/settings/domain?${domainParams.toString()}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        'x-api-key': apikey
-      }
-    }).then(async response => {
-      const settingsResponse = await response.json();
-      if (response.status === 200) {
-        setIsPortEditing(false);
-        setShowAlert(true);
-        setAlertType("success")
-        setAlertMessage(_("Save Success"));
-        setIsWildcardDomainEditing(false);
-
-        init();
-      }
-      else {
-        throw new Error(settingsResponse.details);
-      }
-    }).catch((error) => {
+      init();
+    }
+    catch (error) {
       setShowAlert(true);
       setAlertType("error")
       setAlertMessage(error.message);
-    });
-  };
+    }
+  }
 
   const handleClose = (event, reason) => {
     if (reason === 'clickaway') {
@@ -395,45 +344,18 @@ function App() {
 
   const getSettings = async () => {
     setLoading(true);
-    let api_key = ""
+
     try {
-      api_key = await getApiKey();
-      if (!api_key) {
-        setShowProblem(true);
-        setCockpitProblem(_("Api Key Not Set"));
-        return;
-      }
-      else {
-        setApikey(api_key);
-      }
+      const settingsResponse = await GetSettings();
+      setApikey(settingsResponse?.api_key?.key || "");
+      setCockpitPort(settingsResponse?.cockpit?.port.toString() || "");
+      setWildcardDomain(settingsResponse?.domain?.wildcard_domain || "");
+      setLoading(false);
     }
     catch (error) {
       setShowProblem(true);
-      setCockpitProblem(error.message);
-      return;
-    }
-
-    fetch(`${baseURL}/api/settings`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        'x-api-key': api_key
-      }
-    }).then(async response => {
-      const settingsResponse = await response.json();
-      if (response.status === 200) {
-        setApikey(settingsResponse?.api_key?.key || "");
-        setCockpitPort(settingsResponse?.cockpit?.port.toString() || "");
-        setWildcardDomain(settingsResponse?.domain?.wildcard_domain || "");
-        setLoading(false);
-      }
-      else {
-        throw new Error(settingsResponse.details);
-      }
-    }).catch((error) => {
-      setShowProblem(true);
       setCockpitProblem(error.message || _("Get System Settings Failed"));
-    });
+    }
   }
 
   async function init() {
