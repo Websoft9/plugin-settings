@@ -10,7 +10,7 @@
 
 **Backend API**  
 
-- apphub: Nginx API is used to provide service  for the apphub, such as CRUD domains to installed applications.
+- apphub: this is for websoft9 system settings, such as port, api-key, domain
 - cockpit: this is for running command at host machine
 
 

@@ -5,7 +5,7 @@
 
 # Websoft9 Plugin - `settings`
 
-This plugin is the entrance to settings service, it is used to manage installed applications.
+This plugin is the system settings of Websoft9, it is used to manage application key, port and default domain.
 
 ![image](https://github.com/Websoft9/plugin-settings/assets/43192516/773b2fde-044b-42fb-a3d0-4e2cd4cd70ce)
 
