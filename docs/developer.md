@@ -4,7 +4,7 @@
 
 **Frontend**  
 
-- ui: react-bootstrap, classnames
+- ui: [react-bootstrap](https://react-bootstrap.github.io/)
 - js framework: [Create React App](https://create-react-app.dev/docs/documentation-intro)
 - template: no use
 
@@ -21,5 +21,11 @@ You should install [Websoft9](https://github.com/Websoft9/websoft9) for testing,
 ```
 git clone https://github.com/Websoft9/plugin-settings
 cd plugin-settings
+
+# test
+yarn start
+yarn test
+
+# build
 yarn build && cp -r ./build/* /usr/share/cockpit/settings/
 ```
