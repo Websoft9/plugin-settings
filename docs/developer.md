@@ -13,6 +13,11 @@
 - apphub: this is for websoft9 system settings, such as port, api-key, domain
 - cockpit: this is for running command at host machine
 
+related classes
+
+- src/helpers/api/apiCore.js (cockpit)
+- src/helpers/api/appHub.js
+
 
 ## Build and Test
 
