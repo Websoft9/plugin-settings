@@ -8,6 +8,7 @@ import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { IconButton } from '@mui/material';
 import Accordion from '@mui/material/Accordion';
 import AccordionDetails from '@mui/material/AccordionDetails';
+import AccordionSummary from '@mui/material/AccordionSummary';
 import MuiAlert from '@mui/material/Alert';
 import InputAdornment from '@mui/material/InputAdornment';
 import Snackbar from '@mui/material/Snackbar';
@@ -25,6 +26,7 @@ import Spinner from './components/Spinner';
 import { GetSettings, SetSettings } from './helpers';
 
 const _ = cockpit.gettext;
+const language = cockpit.language;
 
 const Alert = React.forwardRef(function Alert(props, ref) {
   return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
@@ -224,8 +226,8 @@ function App() {
     setShowUpdateLog(false);
 
     //调用更新脚本
-    var script = "curl https://websoft9.github.io/websoft9/install/update.sh | bash";
-    cockpit.spawn(["/bin/bash", "-c", script]).then(() => {
+    var script = "wget -O install.sh https://websoft9.github.io/websoft9/install/install.sh && bash install.sh";
+    cockpit.spawn(["/bin/bash", "-c", script], { superuser: "try" }).then(() => {
       setShowMask(false);
       closeFullModal();
       systemRestart();
@@ -273,10 +275,10 @@ function App() {
       setAlertMessage(_("Port must be a number"));
       return;
     }
-    if (cockpitPort < 0 || cockpitPort > 65535) {
+    if (cockpitPort < 1024 || cockpitPort > 65535) {
       setShowAlert(true);
       setAlertType("error")
-      setAlertMessage(_("Port must be a number between 0 and 65535"));
+      setAlertMessage(_("Port must be a number between 1024 and 65535"));
       return;
     }
 
@@ -531,7 +533,7 @@ function App() {
                 </AccordionDetails>
               </Accordion>
 
-              {/* <Accordion expanded={true} className='mb-2'>
+              <Accordion expanded={true} className='mb-2'>
                 <AccordionSummary
                   aria-controls="panel1a-content"
                   id="panel1a-header"
@@ -543,7 +545,12 @@ function App() {
                 <AccordionDetails>
                   <Typography>
                     <Row className="mb-2 align-items-center">
-                      <Col xs={6} md={6} className="d-flex">
+                      <Col xs={4} md={4} className="d-flex">
+                        <Button variant='primary' className='bg-primary' onClick={() => { setShowConfirm(true); setShowUpdateLog(false); }}>
+                          {_("Update")}
+                        </Button>
+                      </Col>
+                      {/* <Col xs={6} md={6} className="d-flex">
                         {_("Current Version")}{" ："}<span style={{ color: "#0b5ed7" }}>{" "}{updateContent?.local_version}</span>
                       </Col>
                       <Col xs={6} md={6} className="d-flex">
@@ -564,11 +571,11 @@ function App() {
                             {_("Check for updates")}
                           </Button>
                         }
-                      </Col>
+                      </Col> */}
                     </Row>
                   </Typography>
                 </AccordionDetails>
-              </Accordion> */}
+              </Accordion>
             </Card.Body>
           </Card>
         </Col>

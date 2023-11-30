@@ -1,31 +1,8 @@
-(function (root, data) {
-    var loaded, module;
-
-    /* Load into AMD if desired */
-    if (typeof define === 'function' && define.amd) {
-        define(data);
-        loaded = true;
-    }
-
-    /* Load into Cockpit locale */
-    if (typeof cockpit === 'object') {
-        cockpit.locale(data)
-        loaded = true;
-    }
-
-    if (!loaded)
-        root.po = data;
-
-    /* The syntax of this line is important  by po2json */
-}(this, {
+cockpit.locale({
     "": {
-        'plural-forms': function (n) {
-            var nplurals, plural;
-            nplurals = 1; plural = 0;
-            return plural;
-        },
+        "plural-forms": (n) => 0,
         "language": "zh_CN",
-        "x-generator": "Weblate 3.10.3"
+        "language-direction": "ltr"
     },
     "System Setting": [
         null,
@@ -139,9 +116,9 @@
         null,
         "域名"
     ],
-    "Port must be a number between 0 and 65535": [
+    "Port must be a number between 1024 and 65535": [
         null,
-        "端口必须是0到65535之间的数字"
+        "端口必须是1024到65535之间的数字"
     ],
     "Port must be a number": [
         null,
@@ -186,7 +163,13 @@
     "Reset Api Key Success": [
         null,
         "重置Api Key成功"
+    ],
+    "Reset Api Key Success": [
+        null,
+        "重置Api Key成功"
+    ],
+    "W9_HTTP_PORT_SET": [
+        null,
+        "Http端口"
     ]
-}));
-
-
+});
