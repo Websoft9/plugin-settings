@@ -96,13 +96,13 @@ cockpit.locale({
         null,
         "应用商店预览版推送"
     ],
-    "ApiKey copied successfully": [
+    "Copied successfully": [
         null,
-        "ApiKey复制成功"
+        "复制成功"
     ],
-    "ApiKey copied failed": [
+    "Copied failed": [
         null,
-        "ApiKey复制失败"
+        "复制失败"
     ],
     "Get System Settings Failed": [
         null,
@@ -168,8 +168,22 @@ cockpit.locale({
         null,
         "重置Api Key成功"
     ],
-    "W9_HTTP_PORT_SET": [
+    "Enter the domain name after wildcard resolution.": [
         null,
-        "Http端口"
+        "填写泛解析后的域名"
+    ],
+    "(Readme)": [
+        null,
+        "(查看说明)"
+    ],
+    "Port: $0 is already in use.": [
+        null,
+        "端口: $0 已被占用"
+    ],
+    "Please run the following command on the system terminal to implement the update:": [
+        null,
+        "请在系统终端运行以下命令实现更新:"
     ]
 });
+
+

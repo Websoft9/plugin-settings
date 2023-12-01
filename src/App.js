@@ -8,7 +8,6 @@ import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { IconButton } from '@mui/material';
 import Accordion from '@mui/material/Accordion';
 import AccordionDetails from '@mui/material/AccordionDetails';
-import AccordionSummary from '@mui/material/AccordionSummary';
 import MuiAlert from '@mui/material/Alert';
 import InputAdornment from '@mui/material/InputAdornment';
 import Snackbar from '@mui/material/Snackbar';
@@ -22,6 +21,7 @@ import { Button, Card, Col, Modal, Row } from 'react-bootstrap';
 import RbAlert from 'react-bootstrap/Alert';
 import FullModal from "react-modal";
 import "./App.css";
+import MarkdownCode from './components/MarkdownCode';
 import Spinner from './components/Spinner';
 import { GetSettings, SetSettings } from './helpers';
 
@@ -136,6 +136,13 @@ function App() {
   const [originalDomain, setOriginalDomain] = useState(wildcardDomain); //用于存储原始的域名
   const baseURL = `${window.location.protocol}//${window.location.hostname}`;
 
+  const updateCommand = 'wget -O install.sh https://websoft9.github.io/websoft9/install/install.sh && bash install.sh';
+  const updateShell = `
+\`\`\`bash
+${updateCommand}
+\`\`\`
+`;
+
   const showFatherAlert = (type, message) => {
     setShowAlert(true);
     setAlertType(type);
@@ -151,11 +158,11 @@ function App() {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(text).then(() => {
         setShowAlert(true);
-        setAlertMessage(_("ApiKey copied successfully"));
+        setAlertMessage(_("Copied successfully"));
         setAlertType("success");
       }).catch(err => {
         setShowAlert(true);
-        setAlertMessage(_("ApiKey copied failed"));
+        setAlertMessage(_("Copied failed"));
         setAlertType("error");
       });
     }
@@ -169,12 +176,12 @@ function App() {
         document.body.removeChild(textarea);
 
         setShowAlert(true);
-        setAlertMessage(_("ApiKey copied successfully"));
+        setAlertMessage(_("Copied successfully"));
         setAlertType("success");
       }
       catch (err) {
         setShowAlert(true);
-        setAlertMessage(_("ApiKey copied failed"));
+        setAlertMessage(_("Copied failed"));
         setAlertType("error");
       }
     }
@@ -223,20 +230,34 @@ function App() {
   const systemUpdate = async () => {
     showConfirmClose();
     setShowMask(true);
-    setShowUpdateLog(false);
+    //setShowUpdateLog(false);
 
     //调用更新脚本
     var script = "wget -O install.sh https://websoft9.github.io/websoft9/install/install.sh && bash install.sh";
-    cockpit.spawn(["/bin/bash", "-c", script], { superuser: "try" }).then(() => {
+    try {
+      await cockpit.spawn(["/bin/bash", "-c", script], { superuser: "try" });
       setShowMask(false);
       closeFullModal();
       systemRestart();
-    }).catch(exception => {
+    }
+    catch (error) {
       setShowAlert(true);
       setAlertType("error")
-      setAlertMessage(exception.toString());
+      setAlertMessage(error.toString());
       setShowMask(false);
-    });
+    }
+
+
+    // cockpit.spawn(["/bin/bash", "-c", script], { superuser: "try" }).then(() => {
+    //   setShowMask(false);
+    //   closeFullModal();
+    //   systemRestart();
+    // }).catch(exception => {
+    //   setShowAlert(true);
+    //   setAlertType("error")
+    //   setAlertMessage(exception.toString());
+    //   setShowMask(false);
+    // });
   }
 
   const systemRestart = () => {
@@ -284,6 +305,30 @@ function App() {
 
     if (cockpitPort === originalCockpitPort) {
       setIsPortEditing(false);
+      return;
+    }
+
+    try {
+      var script = "bash /usr/share/cockpit/appstore/validate_ports.sh " + cockpitPort;
+      const no_validate_ports = await cockpit.spawn(["/bin/bash", "-c", script], { superuser: "try" });
+      if (no_validate_ports.toString().trim() != "ok") {
+        setShowAlert(true);
+        setAlertType("error")
+        setAlertMessage(cockpit.format(_("Port: $0 is already in use."), no_validate_ports));
+        return;
+      }
+    }
+    catch (error) {
+      const errorText = [error.problem, error.reason, error.message]
+        .filter(item => typeof item === 'string')
+        .join(' ');
+      let exception = errorText || "Validation Port Error";
+      if (errorText.includes("permission denied")) {
+        exception = "Permission denied";
+      }
+      setShowAlert(true);
+      setAlertType("error")
+      setAlertMessage(exception);
       return;
     }
 
@@ -480,7 +525,7 @@ function App() {
                           />
                         </div>
                       </Col>
-                      <Col>
+                      <Col xs={1} md={1}>
                         {isWildcardDomainEditing ? (
                           <>
                             <IconButton title='Save' onClick={handlerDomainSave}>
@@ -495,6 +540,12 @@ function App() {
                             <EditIcon />
                           </IconButton>
                         )}
+                      </Col>
+                      <Col>
+                        <span style={{ fontStyle: "italic", marginLeft: "10px", color: "green" }}>{_("Enter the domain name after wildcard resolution.")}</span>
+                        <a href="https://support.websoft9.com/docs/install/requirements#domain" target="_blank" className="text-muted">
+                          {_("(Readme)")}
+                        </a>
                       </Col>
                     </Row>
                     <Row className="mb-4 d-flex align-items-center">
@@ -533,23 +584,41 @@ function App() {
                 </AccordionDetails>
               </Accordion>
 
+
+
               <Accordion expanded={true} className='mb-2'>
-                <AccordionSummary
+                {/* <AccordionSummary
                   aria-controls="panel1a-content"
                   id="panel1a-header"
                 >
                   <Typography>
                     <label className="me-2 fs-5 d-block">{_("System Updates")}</label>
                   </Typography>
-                </AccordionSummary>
+                </AccordionSummary> */}
                 <AccordionDetails>
                   <Typography>
-                    <Row className="mb-2 align-items-center">
-                      <Col xs={4} md={4} className="d-flex">
-                        <Button variant='primary' className='bg-primary' onClick={() => { setShowConfirm(true); setShowUpdateLog(false); }}>
-                          {_("Update")}
-                        </Button>
+                    <label className="me-2 fs-5 d-block mb-2">{_("System Updates")}</label>
+                  </Typography>
+                  <Typography>
+                    <div style={{ fontStyle: "italic", marginLeft: "10px", color: "green", marginBottom: '10px' }}>
+                      {_("Please run the following command on the system terminal to implement the update:")}
+                    </div>
+                    <Row className="mb-2 d-flex align-items-center" >
+                      <Col xs={7} md={7}>
+                        <MarkdownCode markdown={updateShell} />
                       </Col>
+                      <Col>
+                        <IconButton title='Copy' onClick={() => copyToClipboard(updateCommand)}>
+                          <FileCopyIcon />
+                        </IconButton>
+                      </Col>
+
+
+                      {/* <Col xs={4} md={4} className="d-flex"> */}
+                      {/* <Button variant='primary' className='bg-primary' onClick={() => { setShowConfirm(true); setShowUpdateLog(false); }}>
+                        {_("Update")}
+                      </Button> */}
+                      {/* </Col> */}
                       {/* <Col xs={6} md={6} className="d-flex">
                         {_("Current Version")}{" ："}<span style={{ color: "#0b5ed7" }}>{" "}{updateContent?.local_version}</span>
                       </Col>
