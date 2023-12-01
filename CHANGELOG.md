@@ -1,3 +1,5 @@
+## 0.0.7-rc1 release on 2023-12-01
+1. New App Store preview push function added
 ## 0.0.6 release on 2023-11-16
 1. New App Store preview push function added
 ## 0.0.6-rc1 release on 2023-11-15
