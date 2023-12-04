@@ -1,1 +1,1 @@
-1. New App Store preview push function added
+1. Fix port check
