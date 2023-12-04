@@ -112,13 +112,13 @@ cockpit.locale({
         null,
         "端口"
     ],
-    "Domain": [
+    "Global Domain": [
         null,
-        "域名"
+        "全局域名"
     ],
-    "Port must be a number between 1024 and 65535": [
+    "Port must be a number between 1 and 65535": [
         null,
-        "端口必须是1024到65535之间的数字"
+        "端口必须是1到65535之间的数字"
     ],
     "Port must be a number": [
         null,

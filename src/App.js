@@ -296,10 +296,10 @@ ${updateCommand}
       setAlertMessage(_("Port must be a number"));
       return;
     }
-    if (cockpitPort < 1024 || cockpitPort > 65535) {
+    if (cockpitPort < 1 || cockpitPort > 65535) {
       setShowAlert(true);
       setAlertType("error")
-      setAlertMessage(_("Port must be a number between 1024 and 65535"));
+      setAlertMessage(_("Port must be a number between 1 and 65535"));
       return;
     }
 
@@ -511,7 +511,7 @@ ${updateCommand}
                     </Row>
                     <Row className="mb-4 d-flex align-items-center">
                       <Col xs={1} md={1} style={{ textAlign: "right" }}>
-                        <span>{_("Domain")}{" ："}</span>
+                        <span>{_("Global Domain")}{" ："}</span>
                       </Col>
                       <Col xs={6} md={6}>
                         <div>
