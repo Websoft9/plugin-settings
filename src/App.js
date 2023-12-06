@@ -1,6 +1,7 @@
 import CancelIcon from '@mui/icons-material/Cancel';
 import EditIcon from '@mui/icons-material/Edit';
 import FileCopyIcon from '@mui/icons-material/FileCopy';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SaveIcon from '@mui/icons-material/Save';
 import Visibility from '@mui/icons-material/Visibility';
@@ -542,9 +543,9 @@ ${updateCommand}
                         )}
                       </Col>
                       <Col>
-                        <span style={{ fontStyle: "italic", marginLeft: "10px", color: "green" }}>{_("Enter the domain name after wildcard resolution.")}</span>
+                        <span style={{ fontStyle: "italic", marginLeft: "10px", color: "green", marginRight: "2px" }}>{_("Enter the domain name after wildcard resolution.")}</span>
                         <a href="https://support.websoft9.com/docs/install/requirements#domain" target="_blank" className="text-muted">
-                          {_("(Readme)")}
+                          <HelpOutlineIcon />
                         </a>
                       </Col>
                     </Row>
