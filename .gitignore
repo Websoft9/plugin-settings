@@ -2,7 +2,7 @@
 
 node_modules
 build
-mk.sh
+build.sh
 settings
 artifacts
 settings-*.zip
