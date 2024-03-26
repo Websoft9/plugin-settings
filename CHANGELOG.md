@@ -1,3 +1,5 @@
+## 0.0.9-rc1 release on 2024-03-26
+1. Fix port check
 ## 0.0.9 release on 2024-02-27
 1. Fix port check
 ## 0.0.8-rc1 release on 2023-12-06
