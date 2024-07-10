@@ -2,6 +2,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import EditIcon from '@mui/icons-material/Edit';
 import FileCopyIcon from '@mui/icons-material/FileCopy';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SaveIcon from '@mui/icons-material/Save';
 import Visibility from '@mui/icons-material/Visibility';
@@ -13,17 +14,20 @@ import MuiAlert from '@mui/material/Alert';
 import InputAdornment from '@mui/material/InputAdornment';
 import Snackbar from '@mui/material/Snackbar';
 import TextField from '@mui/material/TextField';
+import Tooltip, { tooltipClasses } from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import { styled } from '@mui/material/styles';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import classNames from 'classnames';
 import cockpit from 'cockpit';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Button, Card, Col, Modal, Row } from 'react-bootstrap';
 import RbAlert from 'react-bootstrap/Alert';
 import FullModal from "react-modal";
 import "./App.css";
 import MarkdownCode from './components/MarkdownCode';
 import Spinner from './components/Spinner';
+import TagsInput from './components/TagsInput';
 import { GetSettings, SetSettings } from './helpers';
 
 const _ = cockpit.gettext;
@@ -32,6 +36,19 @@ const language = cockpit.language;
 const Alert = React.forwardRef(function Alert(props, ref) {
   return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
 });
+
+const BootstrapTooltip = styled(({ className, ...props }) => (
+  <Tooltip {...props} arrow classes={{ popper: className }} />
+))(({ theme }) => ({
+  [`& .${tooltipClasses.arrow}`]: {
+    color: theme.palette.common.black,
+  },
+  [`& .${tooltipClasses.tooltip}`]: {
+    backgroundColor: theme.palette.common.black,
+    maxWidth: 300,
+    fontSize: 13,
+  },
+}));
 
 const ResetApiKeyConform = (props) => {
   const [disable, setDisable] = useState(false);//用于按钮禁用
@@ -128,14 +145,20 @@ function App() {
   const [previewStatus, setPreviewStatus] = useState(null); //用于显示是否开启AppStore接收预览版
   const [apikey, setApikey] = useState(null);
   const [cockpitPort, setCockpitPort] = useState("");
+  const [registry, setRegistry] = useState([]); //用于存储镜像仓库地址
+  const [hasPendingInput, setHasPendingInput] = useState(false); //用于判断是否有镜像仓库地址未保存的输入
   const [wildcardDomain, setWildcardDomain] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isPortEditing, setIsPortEditing] = useState(false);
+  const [isRegistryEditing, setIsRegistryEditing] = useState(false);//用于判断是否正在编辑镜像仓库地址
+  const tagsInputRef = useRef(null); //用于获取TagsInput组件的ref
   const [isWildcardDomainEditing, setIsWildcardDomainEditing] = useState(false);
   const [showConform, setShowConform] = useState(false); //用于显示确认重置Api Key弹窗
   const [originalCockpitPort, setOriginalCockpitPort] = useState(cockpitPort); //用于存储原始的cockpit端口
   const [originalDomain, setOriginalDomain] = useState(wildcardDomain); //用于存储原始的域名
+  const [originalRegistry, setOriginalRegistry] = useState(registry); //用于存储原始的镜像仓库地址
   const baseURL = `${window.location.protocol}//${window.location.hostname}`;
+  const daemonFilePath = "/etc/docker/daemon.json"; //docker配置文件路径
 
   const updateCommand = 'wget -O install.sh https://websoft9.github.io/websoft9/install/install.sh && bash install.sh';
   const updateShell = `
@@ -349,6 +372,49 @@ ${updateCommand}
     }
   };
 
+  const handlerRegistrySave = async () => {
+    try {
+      if (hasPendingInput) {
+        setShowAlert(true);
+        setAlertType('error');
+        setAlertMessage(_('Please press Enter to confirm the input before saving.'));
+        return;
+      }
+
+      await cockpit.file(daemonFilePath).modify((old_content) => {
+        let json;
+        if (old_content === null) {
+          json = {};
+        } else {
+          try {
+            json = JSON.parse(old_content);
+          } catch (error) {
+            throw new Error(_("The Docker daemon configuration file is malformed."));
+          }
+        }
+
+        json["registry-mirrors"] = registry;
+        return JSON.stringify(json, null, 2);
+      });
+
+      setIsRegistryEditing(false);
+      setShowAlert(true);
+      setAlertType("success");
+      setAlertMessage(_("Save Success"));
+
+    } catch (error) {
+      setShowAlert(true);
+      setAlertType("error");
+      setAlertMessage(error.message);
+    }
+  };
+
+
+  const handleTagsChange = (newTags) => {
+    setRegistry(newTags);
+  };
+
+
   const handlerDomainSave = async () => {
     if (wildcardDomain.startsWith('http://') || wildcardDomain.startsWith('https://')) {
       setShowAlert(true);
@@ -404,6 +470,18 @@ ${updateCommand}
       setShowProblem(true);
       setCockpitProblem(error.message || _("Get System Settings Failed"));
     }
+
+    //获取系统镜像加速地址
+    cockpit.file(daemonFilePath).read().then(content => {
+      if (content == null) return;
+      const dockerConfig = JSON.parse(content);
+      setRegistry(dockerConfig["registry-mirrors"] || []);
+    }
+    ).catch(error => {
+      setShowAlert(true);
+      setAlertType("error")
+      setAlertMessage(error.message);
+    });
   }
 
   async function init() {
@@ -476,10 +554,10 @@ ${updateCommand}
                 <AccordionDetails>
                   <Typography>
                     <Row className="mb-4 d-flex align-items-center">
-                      <Col xs={1} md={1} style={{ textAlign: "right" }}>
+                      <Col style={{ textAlign: "right", flex: "0 0 10%" }}>
                         <span>{_("Port")}{" ："}</span>
                       </Col>
-                      <Col xs={6} md={6}>
+                      <Col>
                         <TextField
                           fullWidth
                           type="text"
@@ -489,7 +567,7 @@ ${updateCommand}
                           disabled={!isPortEditing}
                         />
                       </Col>
-                      <Col xs={1} md={1}>
+                      <Col style={{ flex: "0 0 10%" }}>
                         {isPortEditing ? (
                           <>
                             <IconButton title='Save' onClick={handlerPortSave}>
@@ -506,15 +584,15 @@ ${updateCommand}
                         )}
 
                       </Col>
-                      <Col>
+                      <Col style={{ flex: "0 0 30%" }}>
                         <span style={{ fontStyle: "italic", marginLeft: "10px", color: "green" }}>{_("If port not available, modifying it has no effect.")}</span>
                       </Col>
                     </Row>
                     <Row className="mb-4 d-flex align-items-center">
-                      <Col xs={1} md={1} style={{ textAlign: "right" }}>
+                      <Col style={{ textAlign: "right", flex: "0 0 10%" }}>
                         <span>{_("Global Domain")}{" ："}</span>
                       </Col>
-                      <Col xs={6} md={6}>
+                      <Col>
                         <div>
                           <TextField
                             fullWidth
@@ -526,7 +604,7 @@ ${updateCommand}
                           />
                         </div>
                       </Col>
-                      <Col xs={1} md={1}>
+                      <Col style={{ flex: "0 0 10%" }}>
                         {isWildcardDomainEditing ? (
                           <>
                             <IconButton title='Save' onClick={handlerDomainSave}>
@@ -542,18 +620,60 @@ ${updateCommand}
                           </IconButton>
                         )}
                       </Col>
-                      <Col>
+                      <Col style={{ flex: "0 0 30%" }}>
                         <span style={{ fontStyle: "italic", marginLeft: "10px", color: "green", marginRight: "2px" }}>{_("Enter the domain name after wildcard resolution.")}</span>
-                        <a href="https://support.websoft9.com/docs/install/requirements#domain" target="_blank" className="text-muted">
-                          <HelpOutlineIcon />
+                        <a href={`https://support.websoft9.com/${language === "zh_CN" ? '' : 'en/'}docs/next/domain-prepare#wildcard`} target="_blank" className="text-muted">
+                          <OpenInNewIcon color="primary" fontSize="small" />
                         </a>
+                        {/* <BootstrapTooltip title={_("A wildcard domain is a special type of domain name configuration that allows a single wildcard character (usually an asterisk *) to be used to match all subdomains under that domain name.")}>
+                          <HelpOutlineIcon />
+                        </BootstrapTooltip> */}
                       </Col>
                     </Row>
                     <Row className="mb-4 d-flex align-items-center">
-                      <Col xs={1} md={1} style={{ textAlign: "right" }}>
+                      <Col style={{ textAlign: "right", flex: "0 0 10%" }}>
+                        <span>{_("Registry URL")}{" ："}</span>
+                      </Col>
+                      <Col>
+                        <TagsInput ref={tagsInputRef} initialTags={registry} isEditable={isRegistryEditing} onTagsChange={handleTagsChange} onPendingInputChange={setHasPendingInput} />
+                      </Col>
+                      <Col style={{ flex: "0 0 10%" }}>
+                        {isRegistryEditing ? (
+                          <>
+                            <IconButton title='Save' onClick={handlerRegistrySave}>
+                              <SaveIcon />
+                            </IconButton>
+                            <IconButton title='Cancel' onClick={() => {
+                              setIsRegistryEditing(false);
+                              setRegistry(originalRegistry);
+                              if (tagsInputRef.current) {
+                                tagsInputRef.current.clearInput();
+                              }
+                            }}>
+                              <CancelIcon />
+                            </IconButton>
+                          </>
+                        ) : (
+                          <IconButton title='Edit' onClick={() => {
+                            setIsRegistryEditing(true);
+                            setOriginalRegistry(registry);
+                          }}>
+                            <EditIcon />
+                          </IconButton>
+                        )}
+                      </Col>
+                      <Col style={{ flex: "0 0 30%" }}>
+                        <span style={{ fontStyle: "italic", marginLeft: "10px", color: "green" }}>{_("After setting, you need to manually restart docker for it to take effect.")}</span>
+                        <BootstrapTooltip title={_("Docker restart commands: sudo systemctl daemon-reload && sudo systemctl restart docker")} overlayStyle={{ fontSize: "20px" }} >
+                          {' '}<HelpOutlineIcon fontSize="small" />
+                        </BootstrapTooltip>
+                      </Col>
+                    </Row>
+                    <Row className="mb-4 d-flex align-items-center">
+                      <Col style={{ textAlign: "right", flex: "0 0 10%" }}>
                         <span>{_("Api Key")}{" ："}</span>
                       </Col>
-                      <Col xs={6} md={6}>
+                      <Col>
                         <TextField
                           fullWidth
                           type={showPassword ? 'text' : 'password'}
@@ -575,7 +695,7 @@ ${updateCommand}
                           }}
                         />
                       </Col>
-                      <Col>
+                      <Col style={{ flex: "0 0 40%" }}>
                         <IconButton title='reset' onClick={() => setShowConform(true)}>
                           <RefreshIcon />
                         </IconButton>
@@ -584,8 +704,6 @@ ${updateCommand}
                   </Typography>
                 </AccordionDetails>
               </Accordion>
-
-
 
               <Accordion expanded={true} className='mb-2'>
                 {/* <AccordionSummary

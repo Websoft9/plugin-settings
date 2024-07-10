@@ -183,6 +183,34 @@ cockpit.locale({
     "Please run the following command on the system terminal to implement the update:": [
         null,
         "请在系统终端运行以下命令实现更新:"
+    ],
+    "Registry URL": [
+        null,
+        "镜像加速"
+    ],
+    "After setting, you need to manually restart docker for it to take effect.": [
+        null,
+        "设置后，您需要手动重新启动docker才能使其生效"
+    ],
+    "Registry URL cannot be empty": [
+        null,
+        "镜像加速地址不能为空"
+    ],
+    "Please press Enter to confirm the input before saving.": [
+        null,
+        "请在保存前按Enter确认输入"
+    ],
+    "The Docker daemon configuration file is malformed.": [
+        null,
+        "Docker守护程序配置文件格式错误"
+    ],
+    "A wildcard domain is a special type of domain name configuration that allows a single wildcard character (usually an asterisk *) to be used to match all subdomains under that domain name.": [
+        null,
+        "泛域名是一种特殊的域名配置方式，它允许使用一个通配符字符（通常是星号 *）来匹配该域名下的所有子域名."
+    ],
+    "Docker restart commands: sudo systemctl daemon-reload && sudo systemctl restart docker": [
+        null,
+        "Docker重启命令: sudo systemctl daemon-reload && sudo systemctl restart docker"
     ]
 });
 
