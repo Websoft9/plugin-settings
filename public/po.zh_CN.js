@@ -4,11 +4,11 @@ cockpit.locale({
         "language": "zh_CN",
         "language-direction": "ltr"
     },
-    "System Setting": [
+    "System Settings": [
         null,
         "系统设置"
     ],
-    "Setting": [
+    "Settings": [
         null,
         "设置"
     ],

@@ -2,7 +2,7 @@
   "version": "0.1.1",
   "tools": {
     "setting": {
-      "label": "Setting",
+      "label": "Settings",
       "path": "index.html",
       "order": 999
     }

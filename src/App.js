@@ -539,7 +539,7 @@ ${updateCommand}
         <Col xs={12}>
           <Card>
             <Card.Header>
-              <label className="me-2 fs-5 d-block">{_("System Setting")}</label>
+              <label className="me-2 fs-5 d-block">{_("System Settings")}</label>
             </Card.Header>
             <Card.Body>
               <Accordion expanded={true} className='mb-2'>
