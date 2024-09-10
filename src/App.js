@@ -104,7 +104,18 @@ const ResetApiKeyConform = (props) => {
             catch (error) {
               setShowAlert(true);
               setAlertType("error")
-              setAlertMessage(_("Reset Api Key Failed"));
+              // setAlertMessage(_("Reset Api Key Failed"));
+
+              const errorText = [error.problem, error.reason, error.message]
+                .filter(item => typeof item === 'string')
+                .join(' ');
+
+              if (errorText.includes("permission denied")) {
+                setAlertMessage("Your user does not have Docker permissions. Grant Docker permissions to this user by command: sudo usermod -aG docker <username>");
+              }
+              else {
+                setAlertMessage(errorText || "Reset Api Key Failed");
+              }
             }
             finally {
               setDisable(false);
@@ -348,7 +359,7 @@ ${updateCommand}
         .join(' ');
       let exception = errorText || "Validation Port Error";
       if (errorText.includes("permission denied")) {
-        exception = "Permission denied";
+        exception = "Your user does not have Docker permissions. Grant Docker permissions to this user by command: sudo usermod -aG docker <username>";
       }
       setShowAlert(true);
       setAlertType("error")
