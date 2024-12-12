@@ -171,7 +171,7 @@ function App() {
   const baseURL = `${window.location.protocol}//${window.location.hostname}`;
   const daemonFilePath = "/etc/docker/daemon.json"; //docker配置文件路径
 
-  const updateCommand = 'wget -O install.sh https://websoft9.github.io/websoft9/install/install.sh && bash install.sh';
+  const updateCommand = 'wget -O install.sh https://websoft9.github.io/websoft9/install/install.sh && bash install.sh --execute_mode upgrade';
   const updateShell = `
 \`\`\`bash
 ${updateCommand}
