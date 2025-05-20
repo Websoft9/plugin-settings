@@ -36,6 +36,10 @@ cockpit.locale({
         null,
         "最新版本"
     ],
+    "Current version is up-to-date": [
+        null,
+        "已经是最新版本"
+    ],
     "Update Time": [
         null,
         "更新时间"

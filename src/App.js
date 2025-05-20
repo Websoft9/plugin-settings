@@ -23,7 +23,6 @@ import cockpit from 'cockpit';
 import React, { useEffect, useRef, useState } from 'react';
 import { Button, Card, Col, Modal, Row } from 'react-bootstrap';
 import RbAlert from 'react-bootstrap/Alert';
-import FullModal from "react-modal";
 import "./App.css";
 import MarkdownCode from './components/MarkdownCode';
 import Spinner from './components/Spinner';
@@ -141,19 +140,13 @@ const ResetApiKeyConform = (props) => {
 }
 
 function App() {
-  const [showUpdateLog, setShowUpdateLog] = useState(false); //用于更新弹窗
-  const [updateContent, setUpdateContent] = useState({}); //用于存储更新内容
   const [showAlert, setShowAlert] = useState(false); //用于是否显示错误提示
   const [alertMessage, setAlertMessage] = useState("");//用于显示错误提示消息
-  const [disable, setDisable] = useState(false);//用于更新按钮禁用
   const [showMask, setShowMask] = useState(false); //用于设置遮罩层
   const [alertType, setAlertType] = useState("");  //用于确定弹窗的类型：error\success
-  const [showConfirm, setShowConfirm] = useState(false); //用于显示确认更新弹窗
-  const [showComplete, setShowComplete] = useState(false); //用于显示更新完成提示弹窗
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [showProblem, setShowProblem] = useState(false);  //用于控制是否显示 cockpit的错误消息
   const [cockpitProblem, setCockpitProblem] = useState(null); //用于显示cockpit的错误消息
-  const [previewStatus, setPreviewStatus] = useState(null); //用于显示是否开启AppStore接收预览版
   const [apikey, setApikey] = useState(null);
   const [cockpitPort, setCockpitPort] = useState("");
   const [registry, setRegistry] = useState([]); //用于存储镜像仓库地址
@@ -168,8 +161,10 @@ function App() {
   const [originalCockpitPort, setOriginalCockpitPort] = useState(cockpitPort); //用于存储原始的cockpit端口
   const [originalDomain, setOriginalDomain] = useState(wildcardDomain); //用于存储原始的域名
   const [originalRegistry, setOriginalRegistry] = useState(registry); //用于存储原始的镜像仓库地址
-  const baseURL = `${window.location.protocol}//${window.location.hostname}`;
   const daemonFilePath = "/etc/docker/daemon.json"; //docker配置文件路径
+
+  const [currentVersion, setCurrentVersion] = useState("") //用于存储当前版本
+  const [latestVersion, setLatestVersion] = useState("") //用于存储最新版本
 
   const updateCommand = 'wget -O install.sh https://websoft9.github.io/websoft9/install/install.sh && bash install.sh --execute_mode upgrade';
   const updateShell = `
@@ -177,6 +172,19 @@ function App() {
 ${updateCommand}
 \`\`\`
 `;
+
+
+  const compareVersions = (v1, v2) => {
+    const parts1 = v1.split('.').map(Number);
+    const parts2 = v2.split('.').map(Number);
+
+    for (let i = 0; i < 3; i++) {
+      if (parts1[i] > parts2[i]) return 1;
+      if (parts1[i] < parts2[i]) return -1;
+    }
+    return 0;
+  }
+
 
   const showFatherAlert = (type, message) => {
     setShowAlert(true);
@@ -221,102 +229,6 @@ ${updateCommand}
       }
     }
   }
-
-  const checkeUpdate = async (init) => {
-    if (init) {
-      setLoading(true);
-    }
-    try {
-      let response = await cockpit.http({ "address": "websoft9-apphub", "port": 8080 }).get("/AppUpdateList");
-      response = JSON.parse(response);
-      if (response.Error) {
-        setShowAlert(true);
-        setAlertType("error")
-        setAlertMessage(response.Error.Message);
-      }
-      else {
-        setUpdateContent(response.ResponseData.Compare_content); //获取更新内容
-
-        if (!init) { //如果不是第一次加载
-          if (!response.ResponseData.Compare_content.update) { //如果没有更新
-            setShowAlert(true);
-            setAlertType("success")
-            setAlertMessage(_("The system is already the latest version"));
-          } else {
-            setShowUpdateLog(true);
-          }
-        }
-      }
-      setLoading(false);
-    }
-    catch (error) {
-      setShowProblem(true);
-      if (error.problem) {
-        setCockpitProblem(error.problem);
-      }
-      else {
-        setShowAlert(true);
-        setAlertType("error")
-        setAlertMessage(error);
-      }
-    }
-  };
-
-  const systemUpdate = async () => {
-    showConfirmClose();
-    setShowMask(true);
-    //setShowUpdateLog(false);
-
-    //调用更新脚本
-    var script = "wget -O install.sh https://websoft9.github.io/websoft9/install/install.sh && bash install.sh";
-    try {
-      await cockpit.spawn(["/bin/bash", "-c", script], { superuser: "try" });
-      setShowMask(false);
-      closeFullModal();
-      systemRestart();
-    }
-    catch (error) {
-      setShowAlert(true);
-      setAlertType("error")
-      setAlertMessage(error.toString());
-      setShowMask(false);
-    }
-
-
-    // cockpit.spawn(["/bin/bash", "-c", script], { superuser: "try" }).then(() => {
-    //   setShowMask(false);
-    //   closeFullModal();
-    //   systemRestart();
-    // }).catch(exception => {
-    //   setShowAlert(true);
-    //   setAlertType("error")
-    //   setAlertMessage(exception.toString());
-    //   setShowMask(false);
-    // });
-  }
-
-  const systemRestart = () => {
-    setShowComplete(false);
-    cockpit.script("systemctl daemon-reload && systemctl restart cockpit.socket && systemctl restart cockpit.service").then(() => {
-      console.log("system restart successful");
-    }).catch(exception => {
-      setShowAlert(true);
-      setAlertType("error")
-      setAlertMessage(exception.toString());
-    });
-  }
-
-  const updateLogClose = () => {
-    setShowUpdateLog(!showUpdateLog);
-  };
-
-  const showConfirmClose = () => {
-    setShowConfirm(!showConfirm);
-  };
-
-  const showCompleteClose = () => {
-    setShowComplete(!showComplete);
-  };
 
   const handlerPortSave = async () => {
     if (cockpitPort.trim() === "") {
@@ -493,6 +405,34 @@ ${updateCommand}
       setAlertType("error")
       setAlertMessage(error.message);
     });
+
+    //获取当前版本
+    cockpit.script(
+      'grep -oP \'"version": "\\K[^"]+\' "$(docker compose ls | awk \'/websoft9/ {print $3}\' | sed \'s|/source/docker/docker-compose.yml||\')/source/version.json"',
+      [],
+      { err: "message" }
+    ).then((stdout, stderr) => {
+      const version = stdout.trim();
+      setCurrentVersion(version);
+    }).catch(error => {
+      setShowAlert(true);
+      setAlertType("error");
+      setAlertMessage(error.message);
+    });
+
+    //获取最新版本：
+    try {
+      const response = await fetch('https://artifact.websoft9.com/release/websoft9/version.json');
+      const data = await response.json();
+
+      if (data?.version) {
+        setLatestVersion(data.version);
+      }
+    } catch (error) {
+      setShowAlert(true);
+      setAlertType("error");
+      setAlertMessage(error.message);
+    }
   }
 
   async function init() {
@@ -514,39 +454,7 @@ ${updateCommand}
 
   return (
     <>
-      <FullModal parentSelector={() => window.parent.document.body}
-        isOpen={showMask}
-        onRequestClose={closeFullModal}
-        shouldCloseOnOverlayClick={false}
-        contentLabel="Full Modal"
-        style={{
-          overlay: {
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(241, 243, 250, .8)",
-            zIndex: 999
-          },
-          content: {
-            position: "absolute",
-            top: "40px",
-            left: "40px",
-            right: "40px",
-            bottom: "40px",
-          }
-        }}
-      >
-        <img src="../settings/loading.gif" alt="loading" width="200px" style={{ display: "block", margin: "0 auto" }} />
-        <h1 style={{ textAlign: "center", color: "#ffc31a" }}>
-          <strong>
-            {_("During the system update, it will take approximately 3-5 minutes. Please be patient and do not operate during the process to avoid unknown errors.")}
-          </strong>
-        </h1>
-      </FullModal>
-
-      <Row style={{ padding: "30px" }}>
+      <Row className="gx-0" style={{ padding: "30px" }}>
         <Col xs={12}>
           <Card>
             <Card.Header>
@@ -554,14 +462,6 @@ ${updateCommand}
             </Card.Header>
             <Card.Body>
               <Accordion expanded={true} className='mb-2'>
-                {/* <AccordionSummary
-                  aria-controls="panel1a-content"
-                  id="panel1a-header"
-                >
-                  <Typography>
-                    <label className="me-2 fs-5 d-block">{_("Api Key")}</label>
-                  </Typography>
-                </AccordionSummary> */}
                 <AccordionDetails>
                   <Typography>
                     <Row className="mb-4 d-flex align-items-center">
@@ -636,9 +536,6 @@ ${updateCommand}
                         <a href={`https://support.websoft9.com/${language === "zh_CN" ? '' : 'en/'}docs/next/domain-prepare#wildcard`} target="_blank" className="text-muted">
                           <OpenInNewIcon color="primary" fontSize="small" />
                         </a>
-                        {/* <BootstrapTooltip title={_("A wildcard domain is a special type of domain name configuration that allows a single wildcard character (usually an asterisk *) to be used to match all subdomains under that domain name.")}>
-                          <HelpOutlineIcon />
-                        </BootstrapTooltip> */}
                       </Col>
                     </Row>
                     <Row className="mb-4 d-flex align-items-center">
@@ -717,24 +614,29 @@ ${updateCommand}
               </Accordion>
 
               <Accordion expanded={true} className='mb-2'>
-                {/* <AccordionSummary
-                  aria-controls="panel1a-content"
-                  id="panel1a-header"
-                >
-                  <Typography>
-                    <label className="me-2 fs-5 d-block">{_("System Updates")}</label>
-                  </Typography>
-                </AccordionSummary> */}
                 <AccordionDetails>
                   <Typography>
-                    <label className="me-2 fs-5 d-block mb-2">{_("System Updates")}</label>
+                    <label className="me-2 fs-5 d-block mb-2">
+                      {_("System Updates")}
+                      <span style={{ fontSize: "0.8em", marginLeft: "5px" }}>
+                        {compareVersions(latestVersion, currentVersion) > 0 ? (
+                          <span style={{ color: "#ff0000" }}>
+                            ({_("Latest Version")}：{latestVersion})
+                          </span>
+                        ) : (
+                          <span style={{ color: "#0b5ed7" }}>
+                            ({_("Current version is up-to-date")})
+                          </span>
+                        )}
+                      </span>
+                    </label>
                   </Typography>
                   <Typography>
-                    <div style={{ fontStyle: "italic", marginLeft: "10px", color: "green", marginBottom: '10px' }}>
+                    <div style={{ marginLeft: "10px", color: "#777676", marginBottom: '10px' }}>
                       {_("Please run the following command on the system terminal to implement the update:")}
                     </div>
                     <Row className="mb-2 d-flex align-items-center" >
-                      <Col xs={7} md={7}>
+                      <Col xs={8} md={8}>
                         <MarkdownCode markdown={updateShell} />
                       </Col>
                       <Col>
@@ -742,35 +644,6 @@ ${updateCommand}
                           <FileCopyIcon />
                         </IconButton>
                       </Col>
-
-
-                      {/* <Col xs={4} md={4} className="d-flex"> */}
-                      {/* <Button variant='primary' className='bg-primary' onClick={() => { setShowConfirm(true); setShowUpdateLog(false); }}>
-                        {_("Update")}
-                      </Button> */}
-                      {/* </Col> */}
-                      {/* <Col xs={6} md={6} className="d-flex">
-                        {_("Current Version")}{" ："}<span style={{ color: "#0b5ed7" }}>{" "}{updateContent?.local_version}</span>
-                      </Col>
-                      <Col xs={6} md={6} className="d-flex">
-                        {
-                          updateContent.update ? <Button variant="primary" size="sm" className="position-relative me-2"
-                            onClick={() => setShowUpdateLog(true)}>
-                            {_("Update Available")}
-                            <span className="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle">
-                              <span className="visually-hidden">New alerts</span>
-                            </span>
-                          </Button> : <Button variant="primary" size="sm" className="me-2" disabled={disable}
-                            onClick={async () => {
-                              setDisable(true);
-                              await checkeUpdate(false);
-                              setDisable(false);
-                            }} >
-                            {disable && <Spinner className="spinner-border-sm me-1" tag="span" color="white" />}
-                            {_("Check for updates")}
-                          </Button>
-                        }
-                      </Col> */}
                     </Row>
                   </Typography>
                 </AccordionDetails>
@@ -779,49 +652,13 @@ ${updateCommand}
           </Card>
         </Col>
       </Row >
-      <Modal show={showConfirm} onHide={showConfirmClose} size="lg"
-        scrollable="true" backdrop="static" >
-        <Modal.Header onHide={showConfirmClose} closeButton className={classNames('modal-colored-header', 'bg-warning')} style={{ color: "#fff" }}>
-          {_("System Updates")}
-        </Modal.Header>
-        <Modal.Body className="row" >
-          {_("The update operation requires restarting the service. Do you want to continue?")}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="light" onClick={showConfirmClose}>
-            {_("Ignore")}
-          </Button>
-          <Button variant='warning' className='bg-warning' onClick={systemUpdate}>
-            {_("Update")}
-          </Button>
-        </Modal.Footer>
-      </Modal >
-
-      <Modal show={showUpdateLog} onHide={updateLogClose} size="lg"
-        scrollable="true" backdrop="static" >
-        <Modal.Header onHide={updateLogClose} closeButton className={classNames('modal-colored-header', 'bg-primary')} style={{ color: "#fff" }}>
-          {_("Update Log")}
-        </Modal.Header>
-        <Modal.Body className="row" >
-          <p><strong>{_("Latest Version")}</strong>{" : "}<span style={{ color: "#0b5ed7" }}>{updateContent?.target_version}</span></p>
-          <p><strong>{_("Update Time")}</strong>{" : "}{updateContent?.date}</p>
-          <p><strong>{_("Update Content")}</strong>{" : "}</p>
-          {updateContent?.content?.map((item, index) => (
-            <p key={index}>{item}</p>
-          ))}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="light" onClick={updateLogClose}>
-            {_("Ignore")}
-          </Button>
-          <Button variant='primary' className='bg-primary' onClick={() => { setShowConfirm(true); setShowUpdateLog(false); }}>
-            {_("Update")}
-          </Button>
-        </Modal.Footer>
-      </Modal >
+      <Row className="position-fixed bottom-0 start-0 end-0 bg-light p-3">
+        <Col className="text-center">
+          {_("Current Version")}{"："} <span style={{ color: "#0b5ed7" }}>{" "}{currentVersion}</span>
+        </Col>
+      </Row>
 
       <ResetApiKeyConform showConform={showConform} onClose={() => setShowConform(false)} refreshData={() => init()} showFatherAlert={showFatherAlert} />
-
       <Snackbar open={showAlert} autoHideDuration={3000} onClose={handleClose} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
         <Alert onClose={handleClose} severity={alertType} sx={{ width: '100%' }}>
           {alertMessage}
