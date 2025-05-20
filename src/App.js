@@ -619,13 +619,13 @@ ${updateCommand}
                     <label className="me-2 fs-5 d-block mb-2">
                       {_("System Updates")}
                       <span style={{ fontSize: "0.8em", marginLeft: "5px" }}>
-                        {compareVersions(latestVersion, currentVersion) > 0 ? (
-                          <span style={{ color: "#ff0000" }}>
-                            ({_("Latest Version")}：{latestVersion})
-                          </span>
-                        ) : (
+                        {!latestVersion || compareVersions(latestVersion, currentVersion) <= 0 ? (
                           <span style={{ color: "#0b5ed7" }}>
                             ({_("Current version is up-to-date")})
+                          </span>
+                        ) : (
+                          <span style={{ color: "#ff0000" }}>
+                            ({_("Latest Version")}：{latestVersion})
                           </span>
                         )}
                       </span>
