@@ -620,7 +620,7 @@ ${updateCommand}
                       {_("System Updates")}
                       <span style={{ fontSize: "0.8em", marginLeft: "5px" }}>
                         {!latestVersion || compareVersions(latestVersion, currentVersion) <= 0 ? (
-                          <span style={{ color: "#0b5ed7" }}>
+                          <span style={{ color: "green" }}>
                             ({_("Current version is up-to-date")})
                           </span>
                         ) : (
@@ -654,7 +654,7 @@ ${updateCommand}
       </Row >
       <Row className="position-fixed bottom-0 start-0 end-0 bg-light p-3">
         <Col className="text-center">
-          {_("Current Version")}{"："} <span style={{ color: "#0b5ed7" }}>{" "}{currentVersion}</span>
+          {_("Current Version")}{"："} <span style={{ color: "green" }}>{" "}{currentVersion}</span>
         </Col>
       </Row>
 
