@@ -1,3 +1,5 @@
+## 0.1.6 release on 2025-05-20
+1. Fix port check
 ## 0.1.6-rc1 release on 2025-05-20
 1. Fix port check
 ## 0.1.6-rc1 release on 2025-05-20
