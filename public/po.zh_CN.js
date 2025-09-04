@@ -215,6 +215,22 @@ cockpit.locale({
     "Docker restart commands: sudo systemctl daemon-reload && sudo systemctl restart docker": [
         null,
         "Docker重启命令: sudo systemctl daemon-reload && sudo systemctl restart docker"
+    ],
+    "SSL Certificate": [
+        null,
+        "SSL证书"
+    ],
+    "System Default(websoft9-inner)": [
+        null,
+        "系统默认(websoft9-inner)"
+    ],
+    "Please generate or upload certificates in the gateway first.": [
+        null,
+        "请先在网关中生成或上传证书。"
+    ],
+    "Reset may cause API calls to fail, please be cautious.": [
+        null,
+        "重置可能导致API调用失败，请谨慎操作。"
     ]
 });
 

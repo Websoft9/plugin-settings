@@ -1,7 +1,7 @@
 // @flow
-import { GetSettings, SetSettings } from './appHub';
+import { GetSettings, SetSettings, GetSslCertificates } from './appHub';
 
 export {
-    GetSettings, SetSettings
+    GetSettings, SetSettings, GetSslCertificates
 };
 

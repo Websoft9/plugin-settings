@@ -11,7 +11,10 @@ import { IconButton } from '@mui/material';
 import Accordion from '@mui/material/Accordion';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import MuiAlert from '@mui/material/Alert';
+import FormControl from '@mui/material/FormControl';
 import InputAdornment from '@mui/material/InputAdornment';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
 import Snackbar from '@mui/material/Snackbar';
 import TextField from '@mui/material/TextField';
 import Tooltip, { tooltipClasses } from '@mui/material/Tooltip';
@@ -27,12 +30,12 @@ import "./App.css";
 import MarkdownCode from './components/MarkdownCode';
 import Spinner from './components/Spinner';
 import TagsInput from './components/TagsInput';
-import { GetSettings, SetSettings } from './helpers';
+import { GetSettings, SetSettings, GetSslCertificates } from './helpers';
 
 const _ = cockpit.gettext;
 const language = cockpit.language;
 
-const Alert = React.forwardRef(function Alert(props, ref) {
+const MyMuiAlert = React.forwardRef(function Alert(props, ref) {
   return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
 });
 
@@ -51,18 +54,7 @@ const BootstrapTooltip = styled(({ className, ...props }) => (
 
 const ResetApiKeyConform = (props) => {
   const [disable, setDisable] = useState(false);//用于按钮禁用
-  const [showAlert, setShowAlert] = useState(false); //用于是否显示错误提示
-  const [alertType, setAlertType] = useState("");  //用于确定弹窗的类型：error\success
-  const [alertMessage, setAlertMessage] = useState("");//用于显示错误提示消息
   const [showCloseButton, setShowCloseButton] = useState(true);//用于是否显示关闭按钮
-
-  const handleClose = (event, reason) => {
-    if (reason === 'clickaway') {
-      return;
-    }
-    setShowAlert(false);
-    setAlertMessage("");
-  };
 
   return (
     <>
@@ -89,9 +81,7 @@ const ResetApiKeyConform = (props) => {
               var script = "docker exec -i websoft9-apphub apphub genkey";
               const api_key = (await cockpit.spawn(["/bin/bash", "-c", script], { superuser: "try" })).trim();
               if (!api_key) {
-                setShowAlert(true);
-                setAlertType("error")
-                setAlertMessage(_("Reset Api Key Failed"));
+                props.showFatherAlert("error", _("Reset Api Key Failed"));
               }
               else {
                 props.onClose();
@@ -101,19 +91,15 @@ const ResetApiKeyConform = (props) => {
               }
             }
             catch (error) {
-              setShowAlert(true);
-              setAlertType("error")
-              // setAlertMessage(_("Reset Api Key Failed"));
-
               const errorText = [error.problem, error.reason, error.message]
                 .filter(item => typeof item === 'string')
                 .join(' ');
 
               if (errorText.includes("permission denied")) {
-                setAlertMessage("Your user does not have Docker permissions. Grant Docker permissions to this user by command: sudo usermod -aG docker <username>");
+                props.showFatherAlert("error", "Your user does not have Docker permissions. Grant Docker permissions to this user by command: sudo usermod -aG docker <username>");
               }
               else {
-                setAlertMessage(errorText || "Reset Api Key Failed");
+                props.showFatherAlert("error", errorText || "Reset Api Key Failed");
               }
             }
             finally {
@@ -126,14 +112,6 @@ const ResetApiKeyConform = (props) => {
           </Button>
         </Modal.Footer>
       </Modal >
-      {
-        showAlert &&
-        <Snackbar open={showAlert} onClose={handleClose} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
-          <MuiAlert onClose={handleClose} severity={alertType} sx={{ width: '100%' }}>
-            {alertMessage}
-          </MuiAlert>
-        </Snackbar>
-      }
     </>
 
   );
@@ -148,6 +126,8 @@ function App() {
   const [showProblem, setShowProblem] = useState(false);  //用于控制是否显示 cockpit的错误消息
   const [cockpitProblem, setCockpitProblem] = useState(null); //用于显示cockpit的错误消息
   const [apikey, setApikey] = useState(null);
+  const [sslCertificates, setSslCertificates] = useState([]); //用于存储SSL证书列表
+  const [selectedCertificate, setSelectedCertificate] = useState(JSON.stringify({ id: -1, provider: "system-default" })); //用于存储选中的SSL证书
   const [cockpitPort, setCockpitPort] = useState("");
   const [registry, setRegistry] = useState([]); //用于存储镜像仓库地址
   const [hasPendingInput, setHasPendingInput] = useState(false); //用于判断是否有镜像仓库地址未保存的输入
@@ -157,16 +137,18 @@ function App() {
   const [isRegistryEditing, setIsRegistryEditing] = useState(false);//用于判断是否正在编辑镜像仓库地址
   const tagsInputRef = useRef(null); //用于获取TagsInput组件的ref
   const [isWildcardDomainEditing, setIsWildcardDomainEditing] = useState(false);
+  const [isSslCertificateEditing, setIsSslCertificateEditing] = useState(false);//用于判断是否正在编辑SSL证书
   const [showConform, setShowConform] = useState(false); //用于显示确认重置Api Key弹窗
   const [originalCockpitPort, setOriginalCockpitPort] = useState(cockpitPort); //用于存储原始的cockpit端口
   const [originalDomain, setOriginalDomain] = useState(wildcardDomain); //用于存储原始的域名
   const [originalRegistry, setOriginalRegistry] = useState(registry); //用于存储原始的镜像仓库地址
+  const [originalSelectedCertificate, setOriginalSelectedCertificate] = useState(selectedCertificate); //用于存储原始的SSL证书选择
   const daemonFilePath = "/etc/docker/daemon.json"; //docker配置文件路径
 
   const [currentVersion, setCurrentVersion] = useState("") //用于存储当前版本
   const [latestVersion, setLatestVersion] = useState("") //用于存储最新版本
 
-  const updateCommand = 'wget -O install.sh https://websoft9.github.io/websoft9/install/install.sh && bash install.sh --execute_mode upgrade';
+  const updateCommand = 'wget -O install.sh https://artifact.websoft9.com/release/websoft9/install.sh && bash install.sh --execute_mode upgrade';
   const updateShell = `
 \`\`\`bash
 ${updateCommand}
@@ -230,7 +212,56 @@ ${updateCommand}
     }
   }
 
-  const handlerPortSave = async () => {
+  // 解析SSL证书路径，提取证书ID
+  const parseSslCertPath = (sslCertPath) => {
+    if (!sslCertPath) return null;
+
+    // 如果是系统默认证书路径
+    if (sslCertPath === "/data/custom_ssl/websoft9-self-signed.cert") {
+      return "-1";
+    }
+
+    // 解析路径中的证书ID：npm-6 或 npm-14
+    const match = sslCertPath.match(/npm-(\d+)/);
+    if (match && match[1]) {
+      return match[1]; // 返回提取的数字ID
+    }
+
+    return null;
+  };
+
+  // 获取SSL证书列表
+  const getSslCertificates = async (sslCertPath = null) => {
+    try {
+      const certificates = await GetSslCertificates();
+      setSslCertificates(certificates);
+
+      // 根据ssl_cert路径设置默认选择
+      if (sslCertPath) {
+        const certId = parseSslCertPath(sslCertPath);
+        if (certId === "-1") {
+          setSelectedCertificate(JSON.stringify({ id: -1, provider: "system-default" }));
+        } else if (certId) {
+          // 在证书列表中查找匹配的证书
+          const matchedCert = certificates.find(cert => cert.id.toString() === certId);
+          if (matchedCert) {
+            setSelectedCertificate(JSON.stringify({ id: matchedCert.id, provider: matchedCert.provider }));
+          } else {
+            setSelectedCertificate(JSON.stringify({ id: -1, provider: "system-default" })); // 如果没找到匹配的证书，默认选择系统默认
+          }
+        } else {
+          setSelectedCertificate(JSON.stringify({ id: -1, provider: "system-default" })); // 默认选择系统默认
+        }
+      } else {
+        setSelectedCertificate(JSON.stringify({ id: -1, provider: "system-default" })); // 默认选择系统默认
+      }
+    } catch (error) {
+      console.error('Error fetching SSL certificates:', error);
+      setShowAlert(true);
+      setAlertType("error");
+      setAlertMessage(_("Failed to load SSL certificates"));
+    }
+  }; const handlerPortSave = async () => {
     if (cockpitPort.trim() === "") {
       setShowAlert(true);
       setAlertType("error")
@@ -280,7 +311,7 @@ ${updateCommand}
     }
 
     try {
-      const settingsResponse = await SetSettings("cockpit", { key: "port", value: cockpitPort });
+      const settingsResponse = await SetSettings("nginx_proxy_manager", { key: "listen_port", value: cockpitPort });
       setIsPortEditing(false);
       setShowAlert(true);
       setAlertType("success")
@@ -367,6 +398,93 @@ ${updateCommand}
     }
   }
 
+  const handlerSslCertificateSave = async () => {
+    if (selectedCertificate === originalSelectedCertificate) {
+      setIsSslCertificateEditing(false);
+      return;
+    }
+
+    try {
+      // 解析选中的证书信息
+      let certInfo = null;
+      try {
+        certInfo = JSON.parse(selectedCertificate);
+      } catch (e) {
+        console.error("Error parsing certificate info:", e);
+        // 如果解析失败，默认设置为系统默认
+        certInfo = { id: -1, provider: "system-default" };
+      }
+
+      let sslCertPath, sslKeyPath;
+
+      // 根据证书类型和ID生成路径
+      if (certInfo.id === -1) {
+        // 系统默认证书
+        sslCertPath = "/data/custom_ssl/websoft9-self-signed.cert";
+        sslKeyPath = "/data/custom_ssl/websoft9-self-signed.key";
+      } else {
+        // 根据provider类型生成路径
+        if (certInfo.provider === "other") {
+          sslCertPath = `/data/custom_ssl/npm-${certInfo.id}/fullchain.pem`;
+          sslKeyPath = `/data/custom_ssl/npm-${certInfo.id}/privkey.pem`;
+        } else if (certInfo.provider === "letsencrypt") {
+          sslCertPath = `/etc/letsencrypt/live/npm-${certInfo.id}/fullchain.pem`;
+          sslKeyPath = `/etc/letsencrypt/live/npm-${certInfo.id}/privkey.pem`;
+        } else {
+          throw new Error(_("Unsupported certificate provider"));
+        }
+      }
+
+      // 原子操作：保存SSL证书配置，要么都成功要么都失败
+      let sslCertSuccess = false;
+      let originalSslCertPath = null;
+      let originalSslKeyPath = null;
+
+      try {
+        // 先获取当前的SSL配置作为回滚备份
+        const currentSettings = await GetSettings();
+        originalSslCertPath = currentSettings?.nginx_proxy_manager?.ssl_cert;
+        originalSslKeyPath = currentSettings?.nginx_proxy_manager?.ssl_key;
+
+        // 第一步：保存ssl_cert配置
+        await SetSettings("nginx_proxy_manager", { key: "ssl_cert", value: sslCertPath });
+        sslCertSuccess = true;
+
+        // 第二步：保存ssl_key配置
+        await SetSettings("nginx_proxy_manager", { key: "ssl_key", value: sslKeyPath });
+
+        // 两个操作都成功后才更新UI状态
+        setIsSslCertificateEditing(false);
+        setShowAlert(true);
+        setAlertType("success")
+        setAlertMessage(_("Save Success"));
+
+        // 重新初始化以获取最新状态
+        init();
+      } catch (sslConfigError) {
+        // 如果ssl_cert保存成功但ssl_key保存失败，需要回滚ssl_cert
+        if (sslCertSuccess && originalSslCertPath !== null) {
+          try {
+            await SetSettings("nginx_proxy_manager", { key: "ssl_cert", value: originalSslCertPath });
+            console.log("SSL cert configuration rolled back successfully");
+          } catch (rollbackError) {
+            console.error("Failed to rollback SSL cert configuration:", rollbackError);
+            // 回滚失败，需要提示用户手动检查配置
+            throw new Error(_("Failed to save SSL configuration and rollback failed. Please check your SSL settings manually."));
+          }
+        }
+
+        // 抛出原始错误
+        throw new Error(_("Failed to save SSL certificate configuration: ") + sslConfigError.message);
+      }
+    }
+    catch (error) {
+      setShowAlert(true);
+      setAlertType("error")
+      setAlertMessage(error.message);
+    }
+  }
+
   const handleClose = (event, reason) => {
     if (reason === 'clickaway') {
       return;
@@ -381,12 +499,17 @@ ${updateCommand}
 
   const getSettings = async () => {
     setLoading(true);
+    let sslCertPath = null;
 
     try {
       const settingsResponse = await GetSettings();
       setApikey(settingsResponse?.api_key?.key || "");
-      setCockpitPort(settingsResponse?.cockpit?.port.toString() || "");
+      setCockpitPort(settingsResponse?.nginx_proxy_manager?.listen_port.toString() || "");
       setWildcardDomain(settingsResponse?.domain?.wildcard_domain || "");
+
+      // 保存ssl_cert路径，稍后用于设置默认选择
+      sslCertPath = settingsResponse?.nginx_proxy_manager?.ssl_cert;
+
       setLoading(false);
     }
     catch (error) {
@@ -433,6 +556,9 @@ ${updateCommand}
       setAlertType("error");
       setAlertMessage(error.message);
     }
+
+    //获取SSL证书列表
+    await getSslCertificates(sslCertPath);
   }
 
   async function init() {
@@ -603,10 +729,73 @@ ${updateCommand}
                           }}
                         />
                       </Col>
-                      <Col style={{ flex: "0 0 40%" }}>
+                      <Col style={{ flex: "0 0 10%" }}>
                         <IconButton title='reset' onClick={() => setShowConform(true)}>
                           <RefreshIcon />
                         </IconButton>
+                      </Col>
+                      <Col style={{ flex: "0 0 30%" }}>
+                        <span style={{ fontStyle: "italic", marginLeft: "10px", color: "green" }}>{_("Reset may cause API calls to fail, please be cautious.")}</span>
+                      </Col>
+                    </Row>
+                    <Row className="mb-4 d-flex align-items-center">
+                      <Col style={{ textAlign: "right", flex: "0 0 10%" }}>
+                        <span>{_("SSL Certificate")}{" ："}</span>
+                      </Col>
+                      <Col>
+                        <FormControl fullWidth size="small">
+                          <Select
+                            value={selectedCertificate}
+                            onChange={(event) => setSelectedCertificate(event.target.value)}
+                            displayEmpty
+                            disabled={!isSslCertificateEditing}
+                          >
+                            <MenuItem value={JSON.stringify({ id: -1, provider: "system-default" })}>
+                              <em>{_("System Default(websoft9-inner)")}</em>
+                            </MenuItem>
+                            {sslCertificates.map((cert) => (
+                              <MenuItem key={cert.id} value={JSON.stringify({ id: cert.id, provider: cert.provider })}>
+                                {cert.nice_name} - {_("Expires")}: {language === "zh_CN"
+                                  ? new Date(cert.expires_on).toLocaleDateString('zh-CN', {
+                                    year: 'numeric',
+                                    month: '2-digit',
+                                    day: '2-digit'
+                                  })
+                                  : new Date(cert.expires_on).toLocaleDateString('en-US', {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric'
+                                  })
+                                }
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </Col>
+                      <Col style={{ flex: "0 0 10%" }}>
+                        {isSslCertificateEditing ? (
+                          <>
+                            <IconButton title='Save' onClick={handlerSslCertificateSave}>
+                              <SaveIcon />
+                            </IconButton>
+                            <IconButton title='Cancel' onClick={() => {
+                              setIsSslCertificateEditing(false);
+                              setSelectedCertificate(originalSelectedCertificate);
+                            }}>
+                              <CancelIcon />
+                            </IconButton>
+                          </>
+                        ) : (
+                          <IconButton title='Edit' onClick={() => {
+                            setIsSslCertificateEditing(true);
+                            setOriginalSelectedCertificate(selectedCertificate);
+                          }}>
+                            <EditIcon />
+                          </IconButton>
+                        )}
+                      </Col>
+                      <Col style={{ flex: "0 0 30%" }}>
+                        <span style={{ fontStyle: "italic", marginLeft: "10px", color: "green" }}>{_("Please generate or upload certificates in the gateway first.")}</span>
                       </Col>
                     </Row>
                   </Typography>
@@ -659,11 +848,14 @@ ${updateCommand}
       </Row>
 
       <ResetApiKeyConform showConform={showConform} onClose={() => setShowConform(false)} refreshData={() => init()} showFatherAlert={showFatherAlert} />
-      <Snackbar open={showAlert} autoHideDuration={3000} onClose={handleClose} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
-        <Alert onClose={handleClose} severity={alertType} sx={{ width: '100%' }}>
-          {alertMessage}
-        </Alert>
-      </Snackbar>
+      {
+        showAlert &&
+        <Snackbar open={showAlert} autoHideDuration={3000} onClose={handleClose} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
+          <MyMuiAlert onClose={handleClose} severity={alertType} sx={{ width: '100%' }}>
+            {alertMessage}
+          </MyMuiAlert>
+        </Snackbar>
+      }
     </>
   );
 }
