@@ -1,3 +1,5 @@
+## 0.1.8 release on 2025-09-05
+1. Fix port check
 ## 0.1.8-rc1 release on 2025-09-05
 1. Fix port check
 ## 0.1.7 release on 2025-09-04
