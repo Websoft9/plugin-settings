@@ -590,7 +590,7 @@ ${updateCommand}
               <Accordion expanded={true} className='mb-2'>
                 <AccordionDetails>
                   <Typography>
-                    <Row className="mb-4 d-flex align-items-center">
+                    {/* <Row className="mb-4 d-flex align-items-center">
                       <Col style={{ textAlign: "right", flex: "0 0 10%" }}>
                         <span>{_("Port")}{" ："}</span>
                       </Col>
@@ -619,12 +619,11 @@ ${updateCommand}
                             <EditIcon />
                           </IconButton>
                         )}
-
                       </Col>
                       <Col style={{ flex: "0 0 30%" }}>
                         <span style={{ fontStyle: "italic", marginLeft: "10px", color: "green" }}>{_("If port not available, modifying it has no effect.")}</span>
                       </Col>
-                    </Row>
+                    </Row> */}
                     <Row className="mb-4 d-flex align-items-center">
                       <Col style={{ textAlign: "right", flex: "0 0 10%" }}>
                         <span>{_("Global Domain")}{" ："}</span>
